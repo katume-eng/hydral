@@ -1,0 +1,9 @@
+pydub>=0.25.1
+
+# --- future (audio / math) ---
+# numpy
+# scipy
+# librosa
+
+# --- future (ml / generation) ---
+# torch
