@@ -49,3 +49,9 @@ htmlcov/
 # Misc
 *.log
 *.pot
+
+# Personal notes
+reserch_note.md
+
+# Data files
+data/
