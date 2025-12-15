@@ -1,5 +1,5 @@
 # presets/hydral_basic.py
-from pipeline import hydral_pipeline
+from pipelines.audio_pipeline import hydral_pipeline
 from routes import Path
 
 def run():

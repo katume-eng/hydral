@@ -1,5 +1,5 @@
 # presets/test_grain.py
-from pipeline import hydral_pipeline
+from pipelines.audio_pipeline import hydral_pipeline
 
 seed = 42
 
