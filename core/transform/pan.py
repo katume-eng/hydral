@@ -1,16 +1,6 @@
 import random
-
-def shuffle(grains, seed=None):
-    if seed is not None:
-        random.seed(seed)
-    random.shuffle(grains)
-    return grains
-
-def reverse_some(grains, prob=0.2):
-    return [
-        g.reverse() if random.random() < prob else g
-        for g in grains
-    ]
+from pydub import AudioSegment
+import math
 
 def extreme_pan(grains):
     return [
@@ -18,7 +8,7 @@ def extreme_pan(grains):
         for i, g in enumerate(grains)
     ]
 
-import math
+
 def dynamics_pan(grains, cycles=8):
     N = len(grains)
     return [
