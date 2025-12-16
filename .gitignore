@@ -55,3 +55,10 @@ reserch_note.md
 
 # Data files
 data/
+.wav
+.mp3
+.flac
+.m4a
+
+analysis/analysis_outputs/
+expression/

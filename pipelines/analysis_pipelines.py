@@ -8,6 +8,7 @@ from analysis.audio_features.etract_energy import extract_rms_energy
 from analysis.audio_features.bands import extract_frequency_band_energies
 from analysis.audio_features.onset import extract_onset_strength
 from analysis.audio_features.smoothing import apply_moving_average
+from routes import PATH
 
 
 def run_audio_analysis_pipeline(
@@ -94,3 +95,22 @@ def run_audio_analysis_pipeline(
     }
 
     return features
+
+import json
+
+if __name__ == "__main__":
+    features = run_audio_analysis_pipeline(
+        wav_path=PATH["input_wav"]
+    )
+
+    out_dir = Path(PATH["analysis_outputs"])
+    out_dir.mkdir(parents=True, exist_ok=True)
+
+    # numpy → list に変換して保存
+    serializable = {
+        k: v.tolist() if isinstance(v, np.ndarray) else v
+        for k, v in features.items()
+    }
+
+    with open(out_dir / "audio_features.json", "w") as f:
+        json.dump(serializable, f, indent=2)
