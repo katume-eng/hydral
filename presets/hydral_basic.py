@@ -1,11 +1,11 @@
 # presets/hydral_basic.py
 from pipelines.audio_pipeline import hydral_pipeline
-from routes import Path
+from routes import PATH
 
 def run():
     hydral_pipeline(
-        input_wav=Path["input_wav"],
-        output_wav=Path["output_wav"],
+        input_wav=PATH["input_wav"],
+        output_wav=PATH["output_wav"],
         is_assemble=True,
         grain_sec=0.08,
         seed=1234,
@@ -14,3 +14,4 @@ def run():
 
 if __name__ == "__main__":
     run()
+
