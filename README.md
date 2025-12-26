@@ -23,7 +23,7 @@ Hydral formalizes this separation instead of mixing concerns into a single, frag
 ### 1. Layer Separation
 
 | Layer | Purpose | Representation |
-|-------|---------|-----------------|
+| ------- | --------- | ----------------- |
 | **core** | Editing, playback, synthesis | AudioSegment (pydub) |
 | **analysis** | Measurement, decomposition | NumPy arrays (librosa) |
 | **pipelines** | Execution logic | Structured feature dictionaries |
