@@ -1,8 +1,8 @@
 from core.io import load_wav, export_wav
-from core.grain import split_grains
-from core.transform.pan import extreme_pan, dynamics_pan, state_pan,random_state_pan
-from core.transform.other import shuffle, reverse_some
-from core.assemble import concat
+from processing.grain import split_grains
+from processing.assemble import concat
+from processing.pan import extreme_pan, dynamics_pan, state_pan,random_state_pan
+from processing.transform_mics import shuffle, reverse_some
 from pathlib import Path
 import random
 
