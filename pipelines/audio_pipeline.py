@@ -1,4 +1,4 @@
-from core.io import load_wav, export_wav
+from infra.audio import load_wav, export_wav
 from processing.grain import split_grains
 from processing.assemble import concat
 from processing.pan import extreme_pan, dynamics_pan, state_pan,random_state_pan
