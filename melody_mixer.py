@@ -4,15 +4,15 @@ import random
 
 
 SCALE_TYPES = [
-	"major",
-	"minor",
-	"dorian",
-	"mixolydian",
-	"phrygian",
-	"lydian",
-	"locrian",
-	"harmonic minor",
-	"melodic minor",
+	"major: 全全半全全全半",
+	"minor: 全半全全半全全",
+	"dorian: 全半全全全半全",
+	"mixolydian: 全全半全半全全",
+	"phrygian: 半全全全半全全",
+	"lydian: 全全全半全半全",
+	"locrian: 半全全半全全全",
+	"harmonic minor: 全半全全半全半半",
+	"melodic minor: 全半全全全半半",
 ]
 
 KEYS = [
