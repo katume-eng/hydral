@@ -102,7 +102,7 @@ def _note_name_to_midi(note_name: str, octave: int) -> int:
         "F": 5, "F#": 6, "Gb": 6,
         "G": 7, "G#": 8, "Ab": 8,
         "A": 9, "A#": 10, "Bb": 10,
-        "B": 11, "Cb": 11, "B#": 0
+        "B": 11, "Cb": 11, "B#": 12
     }
     
     base = note_map.get(note_name, 0)

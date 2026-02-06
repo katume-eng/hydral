@@ -72,7 +72,7 @@ def choose_harmony(rng_seed: int, options: dict) -> HarmonySpec:
     # Pitch boundaries
     octave_start = rng.randint(3, 5)
     range_span = rng.randint(14, 24)
-    low_note = octave_start * 12 + 12  # MIDI C3 = 48, C4 = 60
+    low_note = (octave_start + 1) * 12  # MIDI octave numbering: C4 = 60, C3 = 48
     high_note = low_note + range_span
     
     # Rhythmic granularity
