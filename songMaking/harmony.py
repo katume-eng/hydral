@@ -29,6 +29,7 @@ def choose_harmony(rng_seed: int, options: dict) -> HarmonySpec:
     Args:
         rng_seed: Seed for reproducible random choices
         options: Configuration parameters (can be empty for defaults)
+                 'bars': Number of measures (overrides random choice if provided)
     
     Returns:
         HarmonySpec with all musical parameters defined
@@ -65,9 +66,12 @@ def choose_harmony(rng_seed: int, options: dict) -> HarmonySpec:
     # Tempo parameters
     tempo = rng.randint(options.get("min_bpm", 80), options.get("max_bpm", 140))
     
-    # Time signature
-    time_sigs = [(3, 4), (4, 4), (5, 4), (6, 8), (7, 8)]
-    numerator, denominator = rng.choice(time_sigs)
+    # Time signature - use 4/4 if bars is specified, otherwise random
+    if "bars" in options:
+        numerator, denominator = 4, 4
+    else:
+        time_sigs = [(3, 4), (4, 4), (5, 4), (6, 8), (7, 8)]
+        numerator, denominator = rng.choice(time_sigs)
     
     # Pitch boundaries
     octave_start = rng.randint(3, 5)
@@ -79,8 +83,11 @@ def choose_harmony(rng_seed: int, options: dict) -> HarmonySpec:
     note_divisions = [0.0625, 0.125, 0.25, 0.5]  # 64th, 32nd, 16th, 8th
     rhythm_grain = rng.choice(note_divisions)
     
-    # Form length
-    measure_count = rng.choice([4, 8, 12, 16])
+    # Form length - use bars option if provided, otherwise random
+    if "bars" in options:
+        measure_count = options["bars"]
+    else:
+        measure_count = rng.choice([4, 8, 12, 16])
     
     return HarmonySpec(
         tonic_note=root,

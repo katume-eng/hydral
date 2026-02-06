@@ -4,6 +4,7 @@ Entry point for songMaking system.
 """
 import argparse
 import json
+import logging
 import os
 from datetime import datetime
 from pathlib import Path
@@ -14,6 +15,12 @@ from songMaking.generators.scored import generate_scored_melody
 from songMaking.generators.markov import generate_markov_melody
 from songMaking.export_midi import create_melody_midi, save_midi_file
 from songMaking.eval import aggregate_melody_score
+
+# Configure logging
+logging.basicConfig(
+    level=logging.INFO,
+    format='%(levelname)s: %(message)s'
+)
 
 
 def generate_melody_midi(harmony_spec, method: str, seed: int, config: dict):
@@ -114,12 +121,20 @@ def main():
         help="N-gram order for markov method"
     )
     
+    parser.add_argument(
+        "--bars",
+        type=int,
+        default=2,
+        help="Number of bars/measures in 4/4 time (default: 2, typical for short melodic phrases)"
+    )
+    
     args = parser.parse_args()
     
     # Prepare configuration
     harmony_config = {
         "min_bpm": args.min_bpm,
-        "max_bpm": args.max_bpm
+        "max_bpm": args.max_bpm,
+        "bars": args.bars
     }
     
     generation_config = {
