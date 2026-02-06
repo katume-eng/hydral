@@ -83,8 +83,7 @@ def test_check_pitch_constraint_outside_tolerance():
     # Should fail: target 50, tolerance 2 (61 is not within 50±2)
     assert check_pitch_constraint(notes, 50.0, 2.0) is False
     
-    # Should fail: target 61, tolerance 0.1 (mean is exactly 61, but needs to be strict)
-    # Actually this should pass since 61 is within 61±0.1
+    # Should pass: target 61, tolerance 0.1 (61 is within 61±0.1)
     assert check_pitch_constraint(notes, 61.0, 0.1) is True
     
     # Should fail: target 61.5, tolerance 0.1 (61 is not within 61.5±0.1)
@@ -98,10 +97,10 @@ def test_check_pitch_constraint_boundary():
     notes = [60]  # Mean = 60
     
     # Exactly at lower boundary
-    assert check_pitch_constraint(notes, 62.0, 2.0) is True  # 60 is at 62-2
+    assert check_pitch_constraint(notes, 62.0, 2.0) is True  # 60 == 62-2
     
     # Exactly at upper boundary
-    assert check_pitch_constraint(notes, 58.0, 2.0) is True  # 60 is at 58+2
+    assert check_pitch_constraint(notes, 58.0, 2.0) is True  # 60 == 58+2
     
     print("✓ test_check_pitch_constraint_boundary passed")
 

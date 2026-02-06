@@ -233,7 +233,7 @@ def main():
     
     # Check if we failed to meet constraint
     if args.mean_pitch_target is not None and attempt >= args.max_attempts:
-        final_mean = pitch_stats["mean"] if pitch_stats and pitch_stats["mean"] is not None else "N/A"
+        final_mean = f"{pitch_stats['mean']:.2f}" if pitch_stats and pitch_stats["mean"] is not None else "N/A"
         print(f"\nWarning: Failed to meet pitch constraint after {args.max_attempts} attempts")
         print(f"Final mean pitch: {final_mean}")
         print("Using last generated melody anyway.")
