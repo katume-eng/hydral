@@ -117,9 +117,65 @@ The resulting features dictionary can be:
 
 - Real‑time streaming analysis
 - End‑user audio editing UI
-- High‑level musical understanding (chords, harmony)
 
 Hydral is deliberately low‑level and composable.
+
+## Song Generation (songMaking)
+
+The `/songMaking` subsystem generates MIDI melodies using various algorithmic approaches. This is **separate from and independent of** water audio editing - it exists in the same repository purely for unified tooling and workflow management.
+
+### Generation Methods
+
+Three distinct algorithms are available:
+
+- **random**: Constrained random selection within harmonic boundaries
+- **scored**: Generates multiple candidates and selects highest-quality via evaluation metrics
+- **markov**: N-gram transition model trained on synthetic melodic patterns
+
+### Usage
+
+```bash
+# Generate using random method
+python -m songMaking.cli --method random --seed 42
+
+# Generate with scored method (evaluates multiple candidates)
+python -m songMaking.cli --method scored --seed 123 --candidates 20
+
+# Generate with Markov chains
+python -m songMaking.cli --method markov --seed 999 --ngram-order 2
+
+# Customize tempo range
+python -m songMaking.cli --method random --seed 42 --min-bpm 100 --max-bpm 160
+```
+
+### Output
+
+Each generation produces two files in `songMaking/output/`:
+
+- **MIDI file** (`.mid`): Playable melody
+- **JSON metadata** (`.json`): Complete generation parameters including:
+  - Method used
+  - Random seed (for reproducibility)
+  - Harmonic specification (key, scale, tempo, time signature, chord progression)
+  - Generation config (candidates, n-gram order, etc.)
+  - Quality metrics
+
+### Reproducibility
+
+Given the same seed and parameters, generation is **fully deterministic**:
+
+```bash
+# These produce identical MIDI output
+python -m songMaking.cli --method random --seed 42
+python -m songMaking.cli --method random --seed 42
+```
+
+### Key Design Principles
+
+- **Harmonic spec separation**: `HarmonySpec` defines musical context, generators implement methods
+- **Pluggable methods**: All generators consume same `HarmonySpec` interface
+- **Evaluation-driven**: Scoring functions (`eval.py`) assess melody quality
+- **No cross-contamination**: `/songMaking` does not depend on `/hydral` water audio tools
 
 ## Status
 
