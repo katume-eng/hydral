@@ -148,6 +148,41 @@ python -m songMaking.cli --method markov --seed 999 --ngram-order 2
 python -m songMaking.cli --method random --seed 42 --min-bpm 100 --max-bpm 160
 ```
 
+### Concatenated Fragment Export
+
+Generate multiple short melody fragments and concatenate them into a single MIDI file with constraint-based filtering:
+
+```bash
+# Generate 20 fragments (2 bars each) with 1-beat gaps
+python -m songMaking.export.concat_fragments --method random --seed 123 --out outputs/audition_001
+
+# Customize fragment count, length, and gaps
+python -m songMaking.export.concat_fragments --method markov --seed 456 \
+  --n-fragments 30 --bars 4 --gap-beats 2.0 --out outputs/long_session
+
+# Apply pitch constraints (MIDI note numbers)
+python -m songMaking.export.concat_fragments --method scored --seed 789 \
+  --min-pitch 60 --max-pitch 84 --target-mean-pitch 72 --mean-tolerance 6 \
+  --out outputs/constrained_range
+```
+
+Each fragment is generated independently with its own harmony spec. Constraints are checked per fragment, with automatic retry (up to `--max-attempts`, default 25) until requirements are met.
+
+### Interactive Audition
+
+The audition tool generates concatenated fragments and optionally plays them back (if `pygame.midi` is available):
+
+```bash
+# Generate and audition fragments
+python -m songMaking.player.audition --method random --seed 999 --n-fragments 15
+
+# With constraints and custom output
+python -m songMaking.player.audition --method markov --seed 123 \
+  --min-pitch 55 --max-pitch 79 --out outputs/audition_session_01
+```
+
+If `pygame.midi` is not installed, fragments are still generated and exported for playback in external MIDI players.
+
 ### Output
 
 Each generation produces two files in `songMaking/output/`:
