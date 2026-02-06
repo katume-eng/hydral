@@ -12,15 +12,21 @@ from songMaking.harmony import choose_harmony, HarmonySpec
 from songMaking.generators.random import generate_random_melody
 from songMaking.export_midi import create_melody_midi
 
+# Tolerance for beat alignment checks (in beats)
+BEAT_TOLERANCE = 0.01
+
 
 def test_bars_option_4_4_time():
-    """Test that --bars option enforces 4/4 time signature."""
-    spec = choose_harmony(42, {'min_bpm': 100, 'max_bpm': 120, 'bars': 3})
+    """Test that --bars option enforces 4/4 time signature with multiple seeds."""
+    # Test with different seeds to ensure bars parameter consistently overrides randomness
+    for seed in [42, 100, 999]:
+        spec = choose_harmony(seed, {'min_bpm': 100, 'max_bpm': 120, 'bars': 3})
+        
+        assert spec.meter_numerator == 4, f"Seed {seed}: Expected numerator=4, got {spec.meter_numerator}"
+        assert spec.meter_denominator == 4, f"Seed {seed}: Expected denominator=4, got {spec.meter_denominator}"
+        assert spec.total_measures == 3, f"Seed {seed}: Expected 3 measures, got {spec.total_measures}"
     
-    assert spec.meter_numerator == 4, f"Expected numerator=4, got {spec.meter_numerator}"
-    assert spec.meter_denominator == 4, f"Expected denominator=4, got {spec.meter_denominator}"
-    assert spec.total_measures == 3, f"Expected 3 measures, got {spec.total_measures}"
-    print("✓ test_bars_option_4_4_time passed")
+    print("✓ test_bars_option_4_4_time passed (tested seeds: 42, 100, 999)")
 
 
 def test_bars_default_behavior():
@@ -43,7 +49,7 @@ def test_total_beats_calculation():
         expected_beats = bars * 4
         
         # Should be exactly equal or very close (accounting for floating point)
-        assert abs(total_beats - expected_beats) < 0.01, \
+        assert abs(total_beats - expected_beats) < BEAT_TOLERANCE, \
             f"For {bars} bars: expected {expected_beats} beats, got {total_beats}"
         print(f"✓ test_total_beats_calculation passed for {bars} bars (total={total_beats})")
 
@@ -57,7 +63,7 @@ def test_rhythm_doesnt_exceed_total():
     expected_beats = 2 * 4  # 2 bars in 4/4
     
     # Should not exceed expected beats
-    assert total_beats <= expected_beats + 0.01, \
+    assert total_beats <= expected_beats + BEAT_TOLERANCE, \
         f"Rhythm exceeded limit: {total_beats} > {expected_beats}"
     print(f"✓ test_rhythm_doesnt_exceed_total passed (total={total_beats}, limit={expected_beats})")
 

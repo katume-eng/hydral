@@ -10,6 +10,9 @@ import logging
 # Configure logging for debug output
 logger = logging.getLogger(__name__)
 
+# Tolerance for beat alignment checks (in beats)
+BEAT_ALIGNMENT_TOLERANCE = 0.01
+
 
 def create_melody_midi(
     pitches: List[int],
@@ -43,7 +46,7 @@ def create_melody_midi(
         current_beat += duration
     
     # Check if rhythm aligns with expected total
-    near_total_beats = abs(total_beats - round(total_beats / beats_per_bar) * beats_per_bar) < 0.01
+    near_total_beats = abs(total_beats - round(total_beats / beats_per_bar) * beats_per_bar) < BEAT_ALIGNMENT_TOLERANCE
     
     # Debug logging before export
     logger.info("=" * 60)

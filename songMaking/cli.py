@@ -125,7 +125,7 @@ def main():
         "--bars",
         type=int,
         default=2,
-        help="Number of bars/measures in 4/4 time (default: 2)"
+        help="Number of bars/measures in 4/4 time (default: 2, typical for short melodic phrases)"
     )
     
     args = parser.parse_args()
