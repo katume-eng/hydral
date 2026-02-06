@@ -9,6 +9,7 @@ lazy_loader==0.4
 librosa==0.11.0
 llvmlite==0.46.0
 msgpack==1.1.2
+MIDIUtil==1.2.1
 numba==0.63.1
 numpy==2.2.6
 packaging==25.0

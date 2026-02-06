@@ -63,5 +63,10 @@ data/
 analysis/analysis_outputs/
 expression/
 
+# Song generation outputs
+songMaking/output/
+*.mid
+*.midi
+
 # reserch_notes
 reserch_note.md
