@@ -15,6 +15,7 @@ from songMaking.generators.scored import generate_scored_melody
 from songMaking.generators.markov import generate_markov_melody
 from songMaking.export_midi import create_melody_midi, save_midi_file
 from songMaking.eval import aggregate_melody_score
+from songMaking.pitch_stats import check_pitch_constraint, get_pitch_stats
 
 # Configure logging
 logging.basicConfig(
@@ -34,7 +35,7 @@ def generate_melody_midi(harmony_spec, method: str, seed: int, config: dict):
         config: Method-specific configuration
     
     Returns:
-        MIDI file bytes
+        (midi_bytes, pitches, durations, score_value, pitch_stats)
     """
     if method == "random":
         pitches, durations = generate_random_melody(harmony_spec, seed, config)
@@ -63,7 +64,10 @@ def generate_melody_midi(harmony_spec, method: str, seed: int, config: dict):
         else:
             score_value = 0.0
     
-    return midi_bytes, pitches, durations, score_value
+    # Calculate pitch statistics
+    pitch_stats = get_pitch_stats(pitches)
+    
+    return midi_bytes, pitches, durations, score_value, pitch_stats
 
 
 def main():
@@ -128,6 +132,27 @@ def main():
         help="Number of bars/measures in 4/4 time (default: 2, typical for short melodic phrases)"
     )
     
+    parser.add_argument(
+        "--mean-pitch-target",
+        type=float,
+        default=None,
+        help="Target mean pitch in MIDI (e.g., 60 for middle C). If specified, generation will retry until constraint is met."
+    )
+    
+    parser.add_argument(
+        "--mean-pitch-tolerance",
+        type=float,
+        default=2.0,
+        help="Tolerance for mean pitch target in semitones (default: 2.0)"
+    )
+    
+    parser.add_argument(
+        "--max-attempts",
+        type=int,
+        default=100,
+        help="Maximum generation attempts when using pitch constraints (default: 100)"
+    )
+    
     args = parser.parse_args()
     
     # Prepare configuration
@@ -154,14 +179,64 @@ def main():
     print(f"Time: {harmony_spec.meter_numerator}/{harmony_spec.meter_denominator}")
     print(f"Measures: {harmony_spec.total_measures}")
     
-    # Generate melody
+    # Display pitch constraint if enabled
+    if args.mean_pitch_target is not None:
+        print(f"\nPitch constraint enabled:")
+        print(f"  Target mean pitch: {args.mean_pitch_target:.1f} MIDI")
+        print(f"  Tolerance: ±{args.mean_pitch_tolerance:.1f} semitones")
+        print(f"  Max attempts: {args.max_attempts}")
+    
+    # Generate melody with retry loop for pitch constraints
     print(f"\nGenerating melody using '{args.method}' method...")
-    midi_bytes, pitches, durations, score = generate_melody_midi(
-        harmony_spec,
-        args.method,
-        args.seed,
-        generation_config
-    )
+    
+    attempt = 0
+    midi_bytes = None
+    pitches = None
+    durations = None
+    score = None
+    pitch_stats = None
+    
+    while attempt < args.max_attempts:
+        attempt += 1
+        
+        # Use different seed for each attempt to get variation
+        attempt_seed = args.seed + attempt - 1
+        
+        midi_bytes, pitches, durations, score, pitch_stats = generate_melody_midi(
+            harmony_spec,
+            args.method,
+            attempt_seed,
+            generation_config
+        )
+        
+        # Check if pitch constraint is satisfied (or not enabled)
+        if args.mean_pitch_target is None:
+            # No constraint - accept first generation
+            break
+        elif pitch_stats["mean"] is not None and check_pitch_constraint(
+            pitches,
+            args.mean_pitch_target,
+            args.mean_pitch_tolerance
+        ):
+            # Constraint satisfied
+            print(f"Constraint satisfied on attempt {attempt}")
+            print(f"  Generated mean pitch: {pitch_stats['mean']:.2f}")
+            break
+        else:
+            # Constraint not satisfied - try again
+            if pitch_stats["mean"] is not None:
+                logging.debug(
+                    f"Attempt {attempt}: mean pitch {pitch_stats['mean']:.2f} "
+                    f"outside range [{args.mean_pitch_target - args.mean_pitch_tolerance:.2f}, "
+                    f"{args.mean_pitch_target + args.mean_pitch_tolerance:.2f}]"
+                )
+    
+    # Check if we failed to meet constraint
+    if args.mean_pitch_target is not None and attempt >= args.max_attempts:
+        final_mean = pitch_stats["mean"] if pitch_stats and pitch_stats["mean"] is not None else "N/A"
+        print(f"\nWarning: Failed to meet pitch constraint after {args.max_attempts} attempts")
+        print(f"Final mean pitch: {final_mean}")
+        print("Using last generated melody anyway.")
     
     print(f"Generated {len(pitches)} notes")
     print(f"Quality score: {score:.3f}")
@@ -195,10 +270,24 @@ def main():
             "measures": harmony_spec.total_measures
         },
         "generation_config": generation_config,
+        "pitch_constraint": {
+            "enabled": args.mean_pitch_target is not None,
+            "target_mean": args.mean_pitch_target,
+            "tolerance": args.mean_pitch_tolerance if args.mean_pitch_target is not None else None,
+            "max_attempts": args.max_attempts if args.mean_pitch_target is not None else None,
+            "attempts_used": attempt if args.mean_pitch_target is not None else 1
+        },
         "result": {
             "note_count": len(pitches),
             "quality_score": round(score, 4),
-            "total_duration_beats": sum(durations)
+            "total_duration_beats": sum(durations),
+            "pitch_stats": {
+                "mean": round(pitch_stats["mean"], 2) if pitch_stats["mean"] is not None else None,
+                "min": pitch_stats["min"],
+                "max": pitch_stats["max"],
+                "range": pitch_stats["range"],
+                "sounding_count": pitch_stats["sounding_count"]
+            }
         }
     }
     
