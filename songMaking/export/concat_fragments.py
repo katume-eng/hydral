@@ -3,6 +3,7 @@ Concatenate multiple MIDI fragments with constraint-based filtering.
 Generates multiple short melody fragments and assembles them into a single MIDI file.
 """
 import argparse
+import io
 import json
 from pathlib import Path
 from typing import List, Tuple, Dict, Optional
@@ -210,7 +211,6 @@ def export_concatenated_fragments(
             )
             
             # Convert to PrettyMIDI for analysis
-            import io
             pm = pretty_midi.PrettyMIDI(io.BytesIO(midi_bytes))
             
             # Analyze pitch stats

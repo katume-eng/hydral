@@ -5,6 +5,7 @@ Generates fragments and attempts playback using pygame.midi if available.
 import argparse
 import sys
 from pathlib import Path
+import pretty_midi
 
 from songMaking.export.concat_fragments import export_concatenated_fragments
 
@@ -30,6 +31,7 @@ def play_midi_file(midi_path: str):
     Args:
         midi_path: Path to MIDI file to play
     """
+    # Import pygame modules locally since they're optional dependencies
     try:
         import pygame
         import pygame.midi
@@ -46,7 +48,6 @@ def play_midi_file(midi_path: str):
         print("(Playback via pygame.midi - press Ctrl+C to stop)")
         
         # Load and parse MIDI file
-        import pretty_midi
         pm = pretty_midi.PrettyMIDI(midi_path)
         
         # Simple playback: send all notes with timing
