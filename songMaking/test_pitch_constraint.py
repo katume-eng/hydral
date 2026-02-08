@@ -142,7 +142,7 @@ def test_generation_with_pitch_constraint():
     spec = choose_harmony(42, {'bars': 2, 'min_bpm': 120, 'max_bpm': 120})
     
     # First, generate a melody to see what range we're dealing with
-    pitches, durations = generate_random_melody(spec, 42, {'rest_probability': 0.1})
+    pitches, durations, debug_stats = generate_random_melody(spec, 42, {'rest_probability': 0.1})
     baseline_mean = calculate_mean_pitch(pitches)
     
     # Use the baseline mean as target with reasonable tolerance
@@ -153,7 +153,7 @@ def test_generation_with_pitch_constraint():
     success = False
     for attempt in range(50):
         seed = 42 + attempt
-        pitches, durations = generate_random_melody(spec, seed, {'rest_probability': 0.1})
+        pitches, durations, debug_stats = generate_random_melody(spec, seed, {'rest_probability': 0.1})
         
         if check_pitch_constraint(pitches, target_pitch, tolerance):
             success = True
@@ -171,7 +171,7 @@ def test_generate_melody_midi_returns_pitch_stats():
     spec = choose_harmony(100, {'bars': 1, 'min_bpm': 100, 'max_bpm': 100})
     config = {'rest_probability': 0.1}
     
-    midi_bytes, pitches, durations, score, pitch_stats = generate_melody_midi(
+    midi_bytes, pitches, durations, score, pitch_stats, debug_stats = generate_melody_midi(
         spec, "random", 100, config
     )
     
@@ -181,6 +181,7 @@ def test_generate_melody_midi_returns_pitch_stats():
     assert durations is not None, "Durations should not be None"
     assert score is not None, "Score should not be None"
     assert pitch_stats is not None, "Pitch stats should not be None"
+    assert debug_stats is not None, "Debug stats should not be None"
     
     # Verify pitch_stats has expected keys
     assert "mean" in pitch_stats
@@ -188,6 +189,12 @@ def test_generate_melody_midi_returns_pitch_stats():
     assert "max" in pitch_stats
     assert "range" in pitch_stats
     assert "sounding_count" in pitch_stats
+    
+    # Verify debug_stats has expected keys
+    assert "duration_distribution" in debug_stats
+    assert "scale_out_rejections" in debug_stats
+    assert "octave_up_events" in debug_stats
+    assert "total_beats" in debug_stats
     
     print("✓ test_generate_melody_midi_returns_pitch_stats passed")
 
@@ -205,7 +212,7 @@ def test_tight_constraint_requires_multiple_attempts():
     
     for attempt in range(max_attempts):
         seed = 123 + attempt
-        pitches, durations = generate_random_melody(spec, seed, {'rest_probability': 0.1})
+        pitches, durations, debug_stats = generate_random_melody(spec, seed, {'rest_probability': 0.1})
         attempts_needed += 1
         
         if check_pitch_constraint(pitches, target_pitch, tolerance):

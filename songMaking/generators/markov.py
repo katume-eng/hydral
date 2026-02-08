@@ -1,11 +1,20 @@
 """
 Markov-based melody generator using n-gram transitions.
 Trains on synthetic patterns then generates new sequences.
+Quantizes all output to scale notes.
 """
 import random
 from typing import List, Tuple, Dict
 from collections import defaultdict
 from songMaking.harmony import HarmonySpec
+from songMaking.note_utils import (
+    get_discrete_duration_values,
+    snap_to_grid,
+    choose_duration,
+    build_scale_pitch_set,
+    pick_scale_pitch,
+    ensure_pitch_in_range
+)
 
 
 class PitchTransitionModel:
@@ -44,17 +53,13 @@ def _create_training_data(spec: HarmonySpec, rng: random.Random) -> List[List[in
     Generate synthetic training sequences based on harmonic spec.
     Creates varied melodic patterns for model to learn from.
     """
-    base_midi = 60  # C4
-    
     # Build scale pitches
-    scale_notes = []
-    for octave in range(-1, 3):
-        for interval in spec.scale_pattern:
-            pitch = base_midi + (octave * 12) + interval
-            if spec.lowest_midi <= pitch <= spec.highest_midi:
-                scale_notes.append(pitch)
-    
-    scale_notes = sorted(set(scale_notes))
+    scale_notes = build_scale_pitch_set(
+        spec.tonic_note,
+        spec.scale_pattern,
+        spec.lowest_midi,
+        spec.highest_midi
+    )
     
     if not scale_notes:
         scale_notes = list(range(spec.lowest_midi, spec.highest_midi + 1))
@@ -99,9 +104,20 @@ def _create_training_data(spec: HarmonySpec, rng: random.Random) -> List[List[in
     return patterns
 
 
-def generate_markov_melody(spec: HarmonySpec, rng_seed: int, config: dict) -> Tuple[List[int], List[float]]:
+def _quantize_to_nearest_scale_note(pitch: int, scale_pitches: List[int]) -> int:
+    """Find nearest pitch in scale."""
+    if pitch in scale_pitches:
+        return pitch
+    
+    # Find closest
+    closest = min(scale_pitches, key=lambda p: abs(p - pitch))
+    return closest
+
+
+def generate_markov_melody(spec: HarmonySpec, rng_seed: int, config: dict) -> Tuple[List[int], List[float], Dict]:
     """
     Generate melody using Markov chain trained on synthetic patterns.
+    Quantizes all transitions to nearest scale note.
     
     Args:
         spec: HarmonySpec defining musical context
@@ -109,9 +125,17 @@ def generate_markov_melody(spec: HarmonySpec, rng_seed: int, config: dict) -> Tu
         config: Additional parameters (ngram_order, etc.)
     
     Returns:
-        (midi_pitches, durations) as parallel lists
+        (midi_pitches, durations, debug_stats) as tuple
     """
     rng = random.Random(rng_seed)
+    
+    # Debug stats
+    debug_stats = {
+        "duration_distribution": {},
+        "scale_out_rejections": 0,
+        "octave_up_events": 0,
+        "total_beats": 0.0
+    }
     
     # Build and train model
     model_order = config.get("ngram_order", 2)
@@ -124,52 +148,68 @@ def generate_markov_melody(spec: HarmonySpec, rng_seed: int, config: dict) -> Tu
     beats_per_bar = spec.meter_numerator * (4.0 / spec.meter_denominator)
     total_beats = beats_per_bar * spec.total_measures
     
+    # Get discrete durations
+    allowed_durations = get_discrete_duration_values(beats_per_bar)
+    
+    # Build scale
+    scale_notes = build_scale_pitch_set(
+        spec.tonic_note,
+        spec.scale_pattern,
+        spec.lowest_midi,
+        spec.highest_midi
+    )
+    if not scale_notes:
+        scale_notes = list(range(spec.lowest_midi, spec.highest_midi + 1))
+    
+    # Octave-up jump chance
+    octave_up_chance = config.get("octave_up_chance", 0.03)
+    
     # Generate pitch sequence
     pitches = []
     durations = []
     
-    # Initialize with random starting context
-    base_midi = 60
-    scale_notes = []
-    for octave in range(-1, 3):
-        for interval in spec.scale_pattern:
-            pitch = base_midi + (octave * 12) + interval
-            if spec.lowest_midi <= pitch <= spec.highest_midi:
-                scale_notes.append(pitch)
-    
-    scale_notes = sorted(set(scale_notes))
-    if not scale_notes:
-        scale_notes = list(range(spec.lowest_midi, spec.highest_midi + 1))
-    
-    # Start with random context
+    # Start with random context from scale
     for _ in range(model_order):
-        pitches.append(rng.choice(scale_notes))
+        pitch = rng.choice(scale_notes)
+        pitches.append(pitch)
     
     # Generate until we fill duration
     elapsed_beats = 0.0
-    min_dur = spec.subdivision_unit
-    max_dur = beats_per_bar / 2
     
     note_idx = 0
     while elapsed_beats < total_beats:
         # Add duration for current note
         remaining = total_beats - elapsed_beats
-        dur_options = []
-        d = min_dur
-        while d <= min(max_dur, remaining):
-            dur_options.append(d)
-            d += min_dur
+        dur = choose_duration(remaining, allowed_durations, rng)
         
-        if not dur_options:
-            dur_options = [remaining]
+        # Track duration
+        dur_key = f"{dur:.3f}"
+        debug_stats["duration_distribution"][dur_key] = \
+            debug_stats["duration_distribution"].get(dur_key, 0) + 1
         
-        durations.append(rng.choice(dur_options))
-        elapsed_beats += durations[-1]
+        durations.append(dur)
+        elapsed_beats = snap_to_grid(elapsed_beats + dur)
         
         # Predict next pitch if we need more
         if elapsed_beats < total_beats:
             context = tuple(pitches[-model_order:])
             next_pitch = model.predict_next(context, rng)
+            
+            # Quantize to nearest scale note
+            if next_pitch not in scale_notes:
+                next_pitch = _quantize_to_nearest_scale_note(next_pitch, scale_notes)
+                # Track scale corrections (parallel to scored's rejection of entire candidates)
+                debug_stats["scale_out_rejections"] += 1
+            
+            # Ensure in range (resample if needed)
+            next_pitch = ensure_pitch_in_range(
+                next_pitch,
+                scale_notes,
+                spec.lowest_midi,
+                spec.highest_midi,
+                rng
+            )
+            
             pitches.append(next_pitch)
         
         note_idx += 1
@@ -177,4 +217,7 @@ def generate_markov_melody(spec: HarmonySpec, rng_seed: int, config: dict) -> Tu
     # Ensure lists are same length
     pitches = pitches[:len(durations)]
     
-    return pitches, durations
+    # Record final total
+    debug_stats["total_beats"] = sum(durations)
+    
+    return pitches, durations, debug_stats

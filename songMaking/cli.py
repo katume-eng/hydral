@@ -35,15 +35,17 @@ def generate_melody_midi(harmony_spec, method: str, seed: int, config: dict):
         config: Method-specific configuration
     
     Returns:
-        (midi_bytes, pitches, durations, score_value, pitch_stats)
+        (midi_bytes, pitches, durations, score_value, pitch_stats, debug_stats)
     """
+    debug_stats = {}
+    
     if method == "random":
-        pitches, durations = generate_random_melody(harmony_spec, seed, config)
+        pitches, durations, debug_stats = generate_random_melody(harmony_spec, seed, config)
         score_value = None
     elif method == "scored":
-        pitches, durations, score_value = generate_scored_melody(harmony_spec, seed, config)
+        pitches, durations, score_value, debug_stats = generate_scored_melody(harmony_spec, seed, config)
     elif method == "markov":
-        pitches, durations = generate_markov_melody(harmony_spec, seed, config)
+        pitches, durations, debug_stats = generate_markov_melody(harmony_spec, seed, config)
         score_value = None
     else:
         raise ValueError(f"Unknown method: {method}")
@@ -67,7 +69,7 @@ def generate_melody_midi(harmony_spec, method: str, seed: int, config: dict):
     # Calculate pitch statistics
     pitch_stats = get_pitch_stats(pitches)
     
-    return midi_bytes, pitches, durations, score_value, pitch_stats
+    return midi_bytes, pitches, durations, score_value, pitch_stats, debug_stats
 
 
 def main():
@@ -195,6 +197,7 @@ def main():
     durations = None
     score = None
     pitch_stats = None
+    debug_stats = None
     
     while attempt < args.max_attempts:
         attempt += 1
@@ -202,7 +205,7 @@ def main():
         # Use different seed for each attempt to get variation
         attempt_seed = args.seed + attempt - 1
         
-        midi_bytes, pitches, durations, score, pitch_stats = generate_melody_midi(
+        midi_bytes, pitches, durations, score, pitch_stats, debug_stats = generate_melody_midi(
             harmony_spec,
             args.method,
             attempt_seed,
@@ -288,6 +291,12 @@ def main():
                 "range": pitch_stats["range"],
                 "sounding_count": pitch_stats["sounding_count"]
             }
+        },
+        "debug_stats": {
+            "duration_distribution": debug_stats.get("duration_distribution", {}) if debug_stats else {},
+            "scale_out_rejections": debug_stats.get("scale_out_rejections", 0) if debug_stats else 0,
+            "octave_up_events": debug_stats.get("octave_up_events", 0) if debug_stats else 0,
+            "total_beats": debug_stats.get("total_beats", sum(durations)) if debug_stats else sum(durations)
         }
     }
     
