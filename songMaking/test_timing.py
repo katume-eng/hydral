@@ -43,7 +43,7 @@ def test_total_beats_calculation():
     """Test that total beats = bars * 4 for 4/4 time."""
     for bars in [1, 2, 4, 8]:
         spec = choose_harmony(42, {'bars': bars, 'min_bpm': 120, 'max_bpm': 120})
-        pitches, durations = generate_random_melody(spec, 42, {'rest_probability': 0.1})
+        pitches, durations, debug_stats = generate_random_melody(spec, 42, {'rest_probability': 0.1})
         
         total_beats = sum(durations)
         expected_beats = bars * 4
@@ -57,7 +57,7 @@ def test_total_beats_calculation():
 def test_rhythm_doesnt_exceed_total():
     """Test that generated rhythm doesn't exceed total_beats."""
     spec = choose_harmony(123, {'bars': 2, 'min_bpm': 100, 'max_bpm': 120})
-    pitches, durations = generate_random_melody(spec, 123, {'rest_probability': 0.15})
+    pitches, durations, debug_stats = generate_random_melody(spec, 123, {'rest_probability': 0.15})
     
     total_beats = sum(durations)
     expected_beats = 2 * 4  # 2 bars in 4/4

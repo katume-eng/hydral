@@ -3,11 +3,19 @@ Random melody generator with harmonic constraints.
 Produces melodies using constrained randomness within HarmonySpec bounds.
 """
 import random
-from typing import List, Tuple
+from typing import List, Tuple, Dict
 from songMaking.harmony import HarmonySpec
+from songMaking.note_utils import (
+    get_discrete_duration_values,
+    snap_to_grid,
+    choose_duration,
+    build_scale_pitch_set,
+    pick_scale_pitch,
+    ensure_pitch_in_range
+)
 
 
-def generate_random_melody(spec: HarmonySpec, rng_seed: int, config: dict) -> Tuple[List[int], List[float]]:
+def generate_random_melody(spec: HarmonySpec, rng_seed: int, config: dict) -> Tuple[List[int], List[float], Dict]:
     """
     Create melody using random selection within harmonic constraints.
     
@@ -17,29 +25,39 @@ def generate_random_melody(spec: HarmonySpec, rng_seed: int, config: dict) -> Tu
         config: Additional parameters (note_density, rest_probability, etc.)
     
     Returns:
-        (midi_pitches, durations_in_beats) as parallel lists
+        (midi_pitches, durations_in_beats, debug_stats) as tuple
     """
     rng = random.Random(rng_seed)
     
-    # Build usable pitch palette from scale
-    base_midi = _note_name_to_midi(spec.tonic_note, 4)  # middle octave reference
+    # Debug stats
+    debug_stats = {
+        "duration_distribution": {},
+        "scale_out_rejections": 0,
+        "octave_up_events": 0,
+        "total_beats": 0.0
+    }
     
-    allowed_pitches = []
-    for octave_offset in range(-2, 4):  # cover multiple octaves
-        for interval in spec.scale_pattern:
-            candidate = base_midi + (octave_offset * 12) + interval
-            if spec.lowest_midi <= candidate <= spec.highest_midi:
-                allowed_pitches.append(candidate)
+    # Build scale pitch set
+    scale_pitches = build_scale_pitch_set(
+        spec.tonic_note,
+        spec.scale_pattern,
+        spec.lowest_midi,
+        spec.highest_midi
+    )
     
-    allowed_pitches = sorted(set(allowed_pitches))
-    
-    if not allowed_pitches:
+    if not scale_pitches:
         # Fallback if constraints too tight
-        allowed_pitches = list(range(spec.lowest_midi, spec.highest_midi + 1))
+        scale_pitches = list(range(spec.lowest_midi, spec.highest_midi + 1))
     
     # Calculate total duration to fill
     beats_per_bar = spec.meter_numerator * (4.0 / spec.meter_denominator)
     total_beats = beats_per_bar * spec.total_measures
+    
+    # Get discrete duration values
+    allowed_durations = get_discrete_duration_values(beats_per_bar)
+    
+    # Octave-up jump chance (1-5%)
+    octave_up_chance = config.get("octave_up_chance", 0.03)
     
     # Generate note sequence
     pitches = []
@@ -47,51 +65,56 @@ def generate_random_melody(spec: HarmonySpec, rng_seed: int, config: dict) -> Tu
     elapsed_beats = 0.0
     
     rest_chance = config.get("rest_probability", 0.15)
-    min_duration = spec.subdivision_unit
-    max_duration = beats_per_bar
     
     while elapsed_beats < total_beats:
         remaining = total_beats - elapsed_beats
         
-        # Choose duration
-        max_here = min(max_duration, remaining)
-        # Quantize to subdivision units
-        possible_lengths = []
-        current = min_duration
-        while current <= max_here:
-            possible_lengths.append(current)
-            current += min_duration
+        # Choose discrete duration
+        dur = choose_duration(remaining, allowed_durations, rng)
         
-        if not possible_lengths:
-            possible_lengths = [remaining]
-        
-        dur = rng.choice(possible_lengths)
+        # Track duration usage
+        dur_key = f"{dur:.3f}"
+        debug_stats["duration_distribution"][dur_key] = \
+            debug_stats["duration_distribution"].get(dur_key, 0) + 1
         
         # Decide rest or note
         if rng.random() < rest_chance:
             # Rest (represented as MIDI 0)
             pitches.append(0)
         else:
-            # Pick from allowed pitches
-            # Slight preference for middle range
-            if len(pitches) > 0 and pitches[-1] != 0:
-                # Step motion bias
-                last_pitch = pitches[-1]
-                nearby = [p for p in allowed_pitches if abs(p - last_pitch) <= 4]
-                if nearby and rng.random() < 0.6:
-                    pitch = rng.choice(nearby)
-                else:
-                    pitch = rng.choice(allowed_pitches)
-            else:
-                pitch = rng.choice(allowed_pitches)
+            # Pick from scale pitches with possible octave jump
+            prev_pitch = pitches[-1] if pitches and pitches[-1] != 0 else None
+            
+            pitch, octave_jump = pick_scale_pitch(
+                scale_pitches,
+                prev_pitch,
+                spec.lowest_midi,
+                spec.highest_midi,
+                octave_up_chance,
+                rng
+            )
+            
+            if octave_jump:
+                debug_stats["octave_up_events"] += 1
+            
+            # Ensure in range
+            pitch = ensure_pitch_in_range(
+                pitch,
+                scale_pitches,
+                spec.lowest_midi,
+                spec.highest_midi,
+                rng
+            )
             
             pitches.append(pitch)
         
         durations.append(dur)
-        elapsed_beats += dur
+        elapsed_beats = snap_to_grid(elapsed_beats + dur)
     
-    return pitches, durations
-
+    # Record final total
+    debug_stats["total_beats"] = sum(durations)
+    
+    return pitches, durations, debug_stats
 
 def _note_name_to_midi(note_name: str, octave: int) -> int:
     """Convert note name like 'C' or 'F#' to MIDI number at given octave."""
