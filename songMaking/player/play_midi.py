@@ -61,10 +61,11 @@ def list_midi_devices():
     """
     List available MIDI output devices.
     
+    Note: pygame.midi must be initialized before calling this function.
+    
     Returns:
         list: List of tuples (device_id, device_info)
     """
-    pygame.midi.init()
     devices = []
     
     for i in range(pygame.midi.get_count()):
@@ -74,13 +75,14 @@ def list_midi_devices():
         if info[3]:  # if output
             devices.append((i, info))
     
-    pygame.midi.quit()
     return devices
 
 
 def find_output_device(hint: str = None):
     """
     Find a suitable MIDI output device.
+    
+    Note: pygame.midi must be initialized before calling this function.
     
     Args:
         hint: Optional substring to match in device name
@@ -107,9 +109,7 @@ def find_output_device(hint: str = None):
         print(f"Warning: No device matching '{hint}' found, using default", file=sys.stderr)
     
     # Use default device
-    pygame.midi.init()
     default_id = pygame.midi.get_default_output_id()
-    pygame.midi.quit()
     
     if default_id == -1:
         # Fallback to first available device
@@ -154,14 +154,14 @@ def play_midi(
     if not Path(midi_path).exists():
         raise FileNotFoundError(f"MIDI file not found: {midi_path}")
     
-    # Find output device
-    device_id = find_output_device(device_hint)
-    
     # Initialize pygame.midi and open output device
     pygame.midi.init()
     midi_out = None
     
     try:
+        # Find output device (must be after pygame.midi.init())
+        device_id = find_output_device(device_hint)
+        
         midi_out = pygame.midi.Output(device_id)
         
         # Load MIDI file
@@ -321,16 +321,20 @@ Available MIDI programs (General MIDI):
     # Handle --list-devices
     if args.list_devices:
         print("Available MIDI output devices:")
-        devices = list_midi_devices()
-        
-        if not devices:
-            print("  (none)")
-        else:
-            for device_id, info in devices:
-                # info = (interf, name, input, output, opened)
-                device_name = info[1].decode('utf-8')
-                interface = info[0].decode('utf-8')
-                print(f"  [{device_id}] {device_name} ({interface})")
+        pygame.midi.init()
+        try:
+            devices = list_midi_devices()
+            
+            if not devices:
+                print("  (none)")
+            else:
+                for device_id, info in devices:
+                    # info = (interf, name, input, output, opened)
+                    device_name = info[1].decode('utf-8')
+                    interface = info[0].decode('utf-8')
+                    print(f"  [{device_id}] {device_name} ({interface})")
+        finally:
+            pygame.midi.quit()
         
         return
     
