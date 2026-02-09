@@ -181,14 +181,17 @@ def play_midi(
         
         # Play all tracks
         for i, track in enumerate(mid.tracks):
-            print(f"Track {i}: {track.name if hasattr(track, 'name') else 'unnamed'}")
+            # Extract track name from meta messages if present
+            track_name = None
+            for msg in track:
+                if msg.type == 'track_name':
+                    track_name = msg.name
+                    break
             
-            current_time = 0  # Accumulated time in ticks
+            display_name = track_name if track_name else 'unnamed'
+            print(f"Track {i}: {display_name}")
             
             for msg in track:
-                # Accumulate delta time
-                current_time += msg.time
-                
                 # Convert ticks to seconds
                 delta_seconds = mido.tick2second(
                     msg.time,
