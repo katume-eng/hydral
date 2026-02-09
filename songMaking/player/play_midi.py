@@ -264,11 +264,11 @@ Examples:
   %(prog)s song.mid --program 0 --bpm-scale 1.5
   %(prog)s song.mid --channel 0 --device-hint "USB"
   
-Available MIDI programs (General MIDI):
-  0 = Acoustic Grand Piano    24 = Acoustic Guitar (nylon)
-  1 = Bright Acoustic Piano    25 = Acoustic Guitar (steel)
-  4 = Electric Piano 1         26 = Electric Guitar (jazz)
-  16 = Drawbar Organ           33 = Acoustic Bass
+Available MIDI programs (General MIDI - selected examples):
+  0 = Acoustic Grand Piano     1 = Bright Acoustic Piano
+  4 = Electric Piano 1         16 = Drawbar Organ
+  24 = Acoustic Guitar (nylon) 25 = Acoustic Guitar (steel)
+  26 = Electric Guitar (jazz)  33 = Acoustic Bass
   40 = Violin                  48 = String Ensemble 1
   56 = Trumpet                 73 = Flute
   
