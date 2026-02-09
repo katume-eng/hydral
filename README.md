@@ -183,6 +183,35 @@ python -m songMaking.player.audition --method markov --seed 123 \
 
 If `pygame.midi` is not installed, fragments are still generated and exported for playback in external MIDI players.
 
+### MIDI Playback
+
+Play any generated MIDI file with precise control over tempo, instrument, and playback parameters:
+
+```bash
+# Basic playback
+python -m songMaking.player.play_midi songMaking/output/melody_001.mid
+
+# Play with different instrument (e.g., electric guitar = program 26)
+python -m songMaking.player.play_midi song.mid --program 26
+
+# Slow down to 50% speed for detailed listening
+python -m songMaking.player.play_midi song.mid --bpm-scale 0.5
+
+# Speed up to 1.5x for quick audition
+python -m songMaking.player.play_midi song.mid --bpm-scale 1.5
+
+# List available MIDI devices
+python -m songMaking.player.play_midi --list-devices
+```
+
+**Requirements:** `pip install mido pygame`
+
+**Features:**
+- Accurate timing with tempo change support
+- Tempo scaling via `--bpm-scale` (0.5 = half speed, 2.0 = double speed)
+- Instrument override via `--program` (0-127, General MIDI)
+- Clean Ctrl+C handling
+
 ### Output
 
 Each generation produces two files in `songMaking/output/`:
