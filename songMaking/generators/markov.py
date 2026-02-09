@@ -4,9 +4,15 @@ Trains on synthetic patterns then generates new sequences.
 Quantizes all output to scale notes.
 """
 import random
-from typing import List, Tuple, Dict
+from typing import List, Tuple, Dict, Optional
 from collections import defaultdict
 from songMaking.harmony import HarmonySpec
+from songMaking.structure import MelodyStructureSpec
+from songMaking.structure_utils import (
+    apply_motif_repetition,
+    calculate_repeat_count,
+    compute_duration_distribution
+)
 from songMaking.note_utils import (
     get_discrete_duration_values,
     snap_to_grid,
@@ -114,7 +120,12 @@ def _quantize_to_nearest_scale_note(pitch: int, scale_pitches: List[int]) -> int
     return closest
 
 
-def generate_markov_melody(spec: HarmonySpec, rng_seed: int, config: dict) -> Tuple[List[int], List[float], Dict]:
+def generate_markov_melody(
+    spec: HarmonySpec,
+    rng_seed: int,
+    config: dict,
+    structure_spec: Optional[MelodyStructureSpec] = None
+) -> Tuple[List[int], List[float], Dict]:
     """
     Generate melody using Markov chain trained on synthetic patterns.
     Quantizes all transitions to nearest scale note.
@@ -123,6 +134,7 @@ def generate_markov_melody(spec: HarmonySpec, rng_seed: int, config: dict) -> Tu
         spec: HarmonySpec defining musical context
         rng_seed: Seed for reproducibility
         config: Additional parameters (ngram_order, etc.)
+        structure_spec: Optional structural constraints
     
     Returns:
         (midi_pitches, durations, debug_stats) as tuple
@@ -134,7 +146,9 @@ def generate_markov_melody(spec: HarmonySpec, rng_seed: int, config: dict) -> Tu
         "duration_distribution": {},
         "scale_out_rejections": 0,
         "octave_up_events": 0,
-        "total_beats": 0.0
+        "total_beats": 0.0,
+        "repeat_count": 0,
+        "actual_duration_distribution": {}
     }
     
     # Build and train model
@@ -150,6 +164,10 @@ def generate_markov_melody(spec: HarmonySpec, rng_seed: int, config: dict) -> Tu
     
     # Get discrete durations
     allowed_durations = get_discrete_duration_values(beats_per_bar)
+    
+    # Apply rhythm profile if specified
+    if structure_spec and structure_spec.rhythm_profile:
+        allowed_durations = list(structure_spec.rhythm_profile.keys())
     
     # Build scale
     scale_notes = build_scale_pitch_set(
@@ -180,7 +198,18 @@ def generate_markov_melody(spec: HarmonySpec, rng_seed: int, config: dict) -> Tu
     while elapsed_beats < total_beats:
         # Add duration for current note
         remaining = total_beats - elapsed_beats
-        dur = choose_duration(remaining, allowed_durations, rng)
+        
+        if structure_spec and structure_spec.rhythm_profile:
+            # Weight choice by rhythm profile
+            dur = rng.choices(
+                list(structure_spec.rhythm_profile.keys()),
+                weights=list(structure_spec.rhythm_profile.values())
+            )[0]
+            # Ensure it fits
+            if dur > remaining + 0.001:
+                dur = choose_duration(remaining, allowed_durations, rng)
+        else:
+            dur = choose_duration(remaining, allowed_durations, rng)
         
         # Track duration
         dur_key = f"{dur:.3f}"
@@ -217,7 +246,22 @@ def generate_markov_melody(spec: HarmonySpec, rng_seed: int, config: dict) -> Tu
     # Ensure lists are same length
     pitches = pitches[:len(durations)]
     
-    # Record final total
+    # Apply structural constraints if specified
+    if structure_spec and structure_spec.repeat_unit_beats:
+        pitches, durations = apply_motif_repetition(
+            pitches,
+            durations,
+            structure_spec.repeat_unit_beats,
+            structure_spec.allow_motif_variation,
+            structure_spec.variation_probability,
+            rng
+        )
+        debug_stats["repeat_count"] = calculate_repeat_count(
+            pitches, durations, structure_spec.repeat_unit_beats
+        )
+    
+    # Record final stats
     debug_stats["total_beats"] = sum(durations)
+    debug_stats["actual_duration_distribution"] = compute_duration_distribution(durations)
     
     return pitches, durations, debug_stats

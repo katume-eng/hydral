@@ -3,8 +3,9 @@ Scored melody generator - generates multiple candidates and selects best.
 Uses evaluation metrics to rank and filter melodies.
 """
 import random
-from typing import List, Tuple, Dict
+from typing import List, Tuple, Dict, Optional
 from songMaking.harmony import HarmonySpec
+from songMaking.structure import MelodyStructureSpec
 from songMaking.generators.random import generate_random_melody
 from songMaking.eval import aggregate_melody_score
 from songMaking.note_utils import (
@@ -14,7 +15,12 @@ from songMaking.note_utils import (
 )
 
 
-def generate_scored_melody(spec: HarmonySpec, rng_seed: int, config: dict) -> Tuple[List[int], List[float], float, Dict]:
+def generate_scored_melody(
+    spec: HarmonySpec,
+    rng_seed: int,
+    config: dict,
+    structure_spec: Optional[MelodyStructureSpec] = None
+) -> Tuple[List[int], List[float], float, Dict]:
     """
     Generate multiple melody candidates and return highest-scoring one.
     Rejects candidates with out-of-scale pitches or invalid durations.
@@ -23,6 +29,7 @@ def generate_scored_melody(spec: HarmonySpec, rng_seed: int, config: dict) -> Tu
         spec: HarmonySpec defining musical context
         rng_seed: Base seed for reproducibility
         config: Parameters including candidate_count, score_threshold
+        structure_spec: Optional structural constraints
     
     Returns:
         (midi_pitches, durations, score, debug_stats) for best candidate
@@ -42,19 +49,27 @@ def generate_scored_melody(spec: HarmonySpec, rng_seed: int, config: dict) -> Tu
     beats_per_bar = spec.meter_numerator * (4.0 / spec.meter_denominator)
     valid_durations = set(get_discrete_duration_values(beats_per_bar))
     
+    # Add structure-specific durations if provided
+    if structure_spec and structure_spec.rhythm_profile:
+        valid_durations.update(structure_spec.rhythm_profile.keys())
+    
     candidates = []
     combined_debug_stats = {
         "duration_distribution": {},
         "scale_out_rejections": 0,
         "octave_up_events": 0,
-        "total_beats": 0.0
+        "total_beats": 0.0,
+        "repeat_count": 0,
+        "actual_duration_distribution": {}
     }
     
     for attempt in range(num_candidates):
         # Derive unique seed for each candidate
         trial_seed = rng_seed + attempt * 1000
         
-        pitches, durations, debug_stats = generate_random_melody(spec, trial_seed, config)
+        pitches, durations, debug_stats = generate_random_melody(
+            spec, trial_seed, config, structure_spec
+        )
         
         # Validation: check for out-of-scale notes
         scale_violation = False
@@ -85,15 +100,21 @@ def generate_scored_melody(spec: HarmonySpec, rng_seed: int, config: dict) -> Tu
             # Too sparse, skip
             continue
         
-        score, metrics = aggregate_melody_score(sounding_notes, durations)
+        score, metrics = aggregate_melody_score(
+            sounding_notes, durations, structure_spec=structure_spec
+        )
         
         if score >= min_acceptable:
             candidates.append((pitches, durations, score, metrics, debug_stats))
     
     if not candidates:
         # No candidate met threshold, generate one more and use it anyway
-        pitches, durations, debug_stats = generate_random_melody(spec, rng_seed, config)
-        score, _ = aggregate_melody_score([p for p in pitches if p > 0], durations)
+        pitches, durations, debug_stats = generate_random_melody(
+            spec, rng_seed, config, structure_spec
+        )
+        score, _ = aggregate_melody_score(
+            [p for p in pitches if p > 0], durations, structure_spec=structure_spec
+        )
         
         # Merge debug stats
         for key in debug_stats.get("duration_distribution", {}):
@@ -102,6 +123,10 @@ def generate_scored_melody(spec: HarmonySpec, rng_seed: int, config: dict) -> Tu
                 debug_stats["duration_distribution"][key]
         combined_debug_stats["octave_up_events"] += debug_stats.get("octave_up_events", 0)
         combined_debug_stats["total_beats"] = debug_stats.get("total_beats", sum(durations))
+        combined_debug_stats["repeat_count"] = debug_stats.get("repeat_count", 0)
+        combined_debug_stats["actual_duration_distribution"] = debug_stats.get(
+            "actual_duration_distribution", {}
+        )
         
         return pitches, durations, score, combined_debug_stats
     
@@ -119,5 +144,9 @@ def generate_scored_melody(spec: HarmonySpec, rng_seed: int, config: dict) -> Tu
         combined_debug_stats["octave_up_events"] += debug_stats.get("octave_up_events", 0)
     
     combined_debug_stats["total_beats"] = best_debug.get("total_beats", sum(best_durations))
+    combined_debug_stats["repeat_count"] = best_debug.get("repeat_count", 0)
+    combined_debug_stats["actual_duration_distribution"] = best_debug.get(
+        "actual_duration_distribution", {}
+    )
     
     return best_pitches, best_durations, best_score, combined_debug_stats

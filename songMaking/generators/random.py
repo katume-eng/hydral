@@ -3,8 +3,15 @@ Random melody generator with harmonic constraints.
 Produces melodies using constrained randomness within HarmonySpec bounds.
 """
 import random
-from typing import List, Tuple, Dict
+from typing import List, Tuple, Dict, Optional
 from songMaking.harmony import HarmonySpec
+from songMaking.structure import MelodyStructureSpec
+from songMaking.structure_utils import (
+    apply_motif_repetition,
+    enforce_rhythm_profile,
+    calculate_repeat_count,
+    compute_duration_distribution
+)
 from songMaking.note_utils import (
     get_discrete_duration_values,
     snap_to_grid,
@@ -15,7 +22,12 @@ from songMaking.note_utils import (
 )
 
 
-def generate_random_melody(spec: HarmonySpec, rng_seed: int, config: dict) -> Tuple[List[int], List[float], Dict]:
+def generate_random_melody(
+    spec: HarmonySpec,
+    rng_seed: int,
+    config: dict,
+    structure_spec: Optional[MelodyStructureSpec] = None
+) -> Tuple[List[int], List[float], Dict]:
     """
     Create melody using random selection within harmonic constraints.
     
@@ -23,6 +35,7 @@ def generate_random_melody(spec: HarmonySpec, rng_seed: int, config: dict) -> Tu
         spec: HarmonySpec defining tonality, range, rhythm
         rng_seed: Seed for reproducibility
         config: Additional parameters (note_density, rest_probability, etc.)
+        structure_spec: Optional structural constraints (repetition, rhythm profile)
     
     Returns:
         (midi_pitches, durations_in_beats, debug_stats) as tuple
@@ -34,7 +47,9 @@ def generate_random_melody(spec: HarmonySpec, rng_seed: int, config: dict) -> Tu
         "duration_distribution": {},
         "scale_out_rejections": 0,
         "octave_up_events": 0,
-        "total_beats": 0.0
+        "total_beats": 0.0,
+        "repeat_count": 0,
+        "actual_duration_distribution": {}
     }
     
     # Build scale pitch set
@@ -56,6 +71,10 @@ def generate_random_melody(spec: HarmonySpec, rng_seed: int, config: dict) -> Tu
     # Get discrete duration values
     allowed_durations = get_discrete_duration_values(beats_per_bar)
     
+    # Apply rhythm profile if specified
+    if structure_spec and structure_spec.rhythm_profile:
+        allowed_durations = list(structure_spec.rhythm_profile.keys())
+    
     # Octave-up jump chance (1-5%)
     octave_up_chance = config.get("octave_up_chance", 0.03)
     
@@ -70,7 +89,17 @@ def generate_random_melody(spec: HarmonySpec, rng_seed: int, config: dict) -> Tu
         remaining = total_beats - elapsed_beats
         
         # Choose discrete duration
-        dur = choose_duration(remaining, allowed_durations, rng)
+        if structure_spec and structure_spec.rhythm_profile:
+            # Weight choice by rhythm profile
+            dur = rng.choices(
+                list(structure_spec.rhythm_profile.keys()),
+                weights=list(structure_spec.rhythm_profile.values())
+            )[0]
+            # Ensure it fits
+            if dur > remaining + 0.001:
+                dur = choose_duration(remaining, allowed_durations, rng)
+        else:
+            dur = choose_duration(remaining, allowed_durations, rng)
         
         # Track duration usage
         dur_key = f"{dur:.3f}"
@@ -111,8 +140,23 @@ def generate_random_melody(spec: HarmonySpec, rng_seed: int, config: dict) -> Tu
         durations.append(dur)
         elapsed_beats = snap_to_grid(elapsed_beats + dur)
     
-    # Record final total
+    # Apply structural constraints if specified
+    if structure_spec and structure_spec.repeat_unit_beats:
+        pitches, durations = apply_motif_repetition(
+            pitches,
+            durations,
+            structure_spec.repeat_unit_beats,
+            structure_spec.allow_motif_variation,
+            structure_spec.variation_probability,
+            rng
+        )
+        debug_stats["repeat_count"] = calculate_repeat_count(
+            pitches, durations, structure_spec.repeat_unit_beats
+        )
+    
+    # Record final stats
     debug_stats["total_beats"] = sum(durations)
+    debug_stats["actual_duration_distribution"] = compute_duration_distribution(durations)
     
     return pitches, durations, debug_stats
 
