@@ -26,7 +26,7 @@ Usage Examples:
 
 Features:
     - Accurate timing using mido's tick2second conversion
-    - Tempo scaling via --bpm-scale (1.0 = original, 2.0 = double speed, 0.5 = half speed)
+    - Tempo scaling via --bpm-scale (1.0 = original, 0.5 = half speed, 2.0 = double speed)
     - Instrument override via --program (0-127)
     - MIDI channel selection via --channel (0-15)
     - Device selection via --device-hint substring matching
@@ -200,8 +200,8 @@ def play_midi(
                 )
                 
                 # Apply tempo scaling by adjusting sleep duration
-                # bpm_scale > 1.0 = faster playback, dividing shortens sleep time
-                # bpm_scale < 1.0 = slower playback, dividing by smaller value lengthens sleep time
+                # bpm_scale > 1.0: faster playback, dividing shortens sleep time
+                # bpm_scale < 1.0: slower playback, dividing by value < 1.0 increases sleep time
                 sleep_time = delta_seconds / bpm_scale
                 
                 if sleep_time > 0:
