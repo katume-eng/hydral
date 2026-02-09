@@ -10,6 +10,7 @@ from datetime import datetime
 from pathlib import Path
 
 from songMaking.harmony import choose_harmony
+from songMaking.structure import MelodyStructureSpec, create_default_structure_spec, create_structured_spec
 from songMaking.generators.random import generate_random_melody
 from songMaking.generators.scored import generate_scored_melody
 from songMaking.generators.markov import generate_markov_melody
@@ -24,7 +25,7 @@ logging.basicConfig(
 )
 
 
-def generate_melody_midi(harmony_spec, method: str, seed: int, config: dict):
+def generate_melody_midi(harmony_spec, method: str, seed: int, config: dict, structure_spec=None):
     """
     Generate MIDI melody using specified method and harmonic context.
     
@@ -33,6 +34,7 @@ def generate_melody_midi(harmony_spec, method: str, seed: int, config: dict):
         method: Generator method name ('random', 'scored', 'markov')
         seed: Random seed for reproducibility
         config: Method-specific configuration
+        structure_spec: Optional MelodyStructureSpec for structural constraints
     
     Returns:
         (midi_bytes, pitches, durations, score_value, pitch_stats, debug_stats)
@@ -40,12 +42,18 @@ def generate_melody_midi(harmony_spec, method: str, seed: int, config: dict):
     debug_stats = {}
     
     if method == "random":
-        pitches, durations, debug_stats = generate_random_melody(harmony_spec, seed, config)
+        pitches, durations, debug_stats = generate_random_melody(
+            harmony_spec, seed, config, structure_spec
+        )
         score_value = None
     elif method == "scored":
-        pitches, durations, score_value, debug_stats = generate_scored_melody(harmony_spec, seed, config)
+        pitches, durations, score_value, debug_stats = generate_scored_melody(
+            harmony_spec, seed, config, structure_spec
+        )
     elif method == "markov":
-        pitches, durations, debug_stats = generate_markov_melody(harmony_spec, seed, config)
+        pitches, durations, debug_stats = generate_markov_melody(
+            harmony_spec, seed, config, structure_spec
+        )
         score_value = None
     else:
         raise ValueError(f"Unknown method: {method}")
@@ -62,7 +70,7 @@ def generate_melody_midi(harmony_spec, method: str, seed: int, config: dict):
     if score_value is None:
         sounding = [p for p in pitches if p > 0]
         if sounding:
-            score_value, _ = aggregate_melody_score(sounding, durations)
+            score_value, _ = aggregate_melody_score(sounding, durations, structure_spec=structure_spec)
         else:
             score_value = 0.0
     
@@ -155,6 +163,33 @@ def main():
         help="Maximum generation attempts when using pitch constraints (default: 100)"
     )
     
+    parser.add_argument(
+        "--repeat-unit-beats",
+        type=float,
+        default=None,
+        help="Repeating unit length in beats (e.g., 4.0 for 1 bar in 4/4). Enables structural repetition."
+    )
+    
+    parser.add_argument(
+        "--allow-motif-variation",
+        action="store_true",
+        help="Allow subtle variations in repeated motifs (default: False)"
+    )
+    
+    parser.add_argument(
+        "--variation-probability",
+        type=float,
+        default=0.3,
+        help="Probability of applying variation to repeated motif (0.0-1.0, default: 0.3)"
+    )
+    
+    parser.add_argument(
+        "--rhythm-profile",
+        type=str,
+        default=None,
+        help="Target rhythm profile as JSON, e.g., '{\"0.5\": 0.6, \"1.0\": 0.4}' for 60%% eighths, 40%% quarters"
+    )
+    
     args = parser.parse_args()
     
     # Prepare configuration
@@ -171,6 +206,36 @@ def main():
         "ngram_order": args.ngram_order
     }
     
+    # Parse structure spec
+    structure_spec = None
+    if args.repeat_unit_beats is not None or args.rhythm_profile is not None:
+        # Parse rhythm profile if provided
+        rhythm_profile = None
+        if args.rhythm_profile:
+            try:
+                rhythm_profile = json.loads(args.rhythm_profile)
+                # Convert string keys to float
+                rhythm_profile = {float(k): float(v) for k, v in rhythm_profile.items()}
+            except (json.JSONDecodeError, ValueError) as e:
+                print(f"Warning: Could not parse rhythm profile: {e}")
+                print("Continuing without rhythm profile constraint.")
+        
+        if args.repeat_unit_beats is not None:
+            structure_spec = create_structured_spec(
+                repeat_unit_beats=args.repeat_unit_beats,
+                rhythm_profile=rhythm_profile,
+                allow_variation=args.allow_motif_variation,
+                variation_prob=args.variation_probability
+            )
+        elif rhythm_profile is not None:
+            # Only rhythm profile, no repetition
+            structure_spec = MelodyStructureSpec(
+                repeat_unit_beats=None,
+                rhythm_profile=rhythm_profile,
+                allow_motif_variation=False,
+                variation_probability=0.0
+            )
+    
     # Generate harmony specification
     print(f"Generating harmony specification with seed {args.seed}...")
     harmony_spec = choose_harmony(args.seed, harmony_config)
@@ -180,6 +245,17 @@ def main():
     print(f"Tempo: {harmony_spec.beats_per_minute} BPM")
     print(f"Time: {harmony_spec.meter_numerator}/{harmony_spec.meter_denominator}")
     print(f"Measures: {harmony_spec.total_measures}")
+    
+    # Display structure constraints if enabled
+    if structure_spec:
+        print("\nStructural constraints enabled:")
+        if structure_spec.repeat_unit_beats:
+            print(f"  Repeat unit: {structure_spec.repeat_unit_beats} beats")
+            print(f"  Allow variations: {structure_spec.allow_motif_variation}")
+            if structure_spec.allow_motif_variation:
+                print(f"  Variation probability: {structure_spec.variation_probability}")
+        if structure_spec.rhythm_profile:
+            print(f"  Rhythm profile: {structure_spec.rhythm_profile}")
     
     # Display pitch constraint if enabled
     if args.mean_pitch_target is not None:
@@ -209,7 +285,8 @@ def main():
             harmony_spec,
             args.method,
             attempt_seed,
-            generation_config
+            generation_config,
+            structure_spec
         )
         
         # Check if pitch constraint is satisfied (or not enabled)
@@ -272,6 +349,13 @@ def main():
             "subdivision": harmony_spec.subdivision_unit,
             "measures": harmony_spec.total_measures
         },
+        "structure": {
+            "enabled": structure_spec is not None,
+            "repeat_unit_beats": structure_spec.repeat_unit_beats if structure_spec else None,
+            "rhythm_profile": structure_spec.rhythm_profile if structure_spec else None,
+            "allow_motif_variation": structure_spec.allow_motif_variation if structure_spec else False,
+            "variation_probability": structure_spec.variation_probability if structure_spec else 0.0
+        },
         "generation_config": generation_config,
         "pitch_constraint": {
             "enabled": args.mean_pitch_target is not None,
@@ -296,7 +380,9 @@ def main():
             "duration_distribution": debug_stats.get("duration_distribution", {}) if debug_stats else {},
             "scale_out_rejections": debug_stats.get("scale_out_rejections", 0) if debug_stats else 0,
             "octave_up_events": debug_stats.get("octave_up_events", 0) if debug_stats else 0,
-            "total_beats": debug_stats.get("total_beats", sum(durations)) if debug_stats else sum(durations)
+            "total_beats": debug_stats.get("total_beats", sum(durations)) if debug_stats else sum(durations),
+            "repeat_count": debug_stats.get("repeat_count", 0) if debug_stats else 0,
+            "actual_duration_distribution": debug_stats.get("actual_duration_distribution", {}) if debug_stats else {}
         }
     }
     
