@@ -200,8 +200,8 @@ def play_midi(
                 )
                 
                 # Apply tempo scaling by adjusting sleep duration
-                # bpm_scale > 1.0 = faster playback, so divide to shorten sleep time
-                # bpm_scale < 1.0 = slower playback, so divide to lengthen sleep time
+                # bpm_scale > 1.0 = faster playback, dividing shortens sleep time
+                # bpm_scale < 1.0 = slower playback, dividing by smaller value lengthens sleep time
                 sleep_time = delta_seconds / bpm_scale
                 
                 if sleep_time > 0:
@@ -244,9 +244,9 @@ def play_midi(
     finally:
         # Clean shutdown
         if midi_out:
-            # Send all notes off to prevent stuck notes
-            for note in range(128):
-                midi_out.note_off(note, 0, channel)
+            # Send All Notes Off (CC 123) to prevent stuck notes
+            # More efficient than sending 128 individual note_off messages
+            midi_out.write_short(0xB0 | channel, 123, 0)
             
             del midi_out
         
