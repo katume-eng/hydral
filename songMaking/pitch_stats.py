@@ -2,7 +2,8 @@
 Pitch statistics utilities for analyzing and constraining melodies.
 Calculates mean pitch and checks against target/tolerance constraints.
 """
-from typing import List, Optional
+from typing import List, Optional, Dict, Any
+import math
 
 
 def calculate_mean_pitch(midi_notes: List[int]) -> Optional[float]:
@@ -48,6 +49,51 @@ def check_pitch_constraint(
     upper_bound = target_pitch + tolerance
     
     return lower_bound <= mean_pitch <= upper_bound
+
+
+def compute_pitch_stats(notes: List[int]) -> Dict[str, Any]:
+    """
+    Compute comprehensive pitch statistics for MIDI notes.
+    
+    Args:
+        notes: List of MIDI pitch values (0 indicates rest)
+    
+    Returns:
+        Dictionary with pitch statistics:
+        - avg_pitch: Average pitch of sounding notes (None if no sounding notes)
+        - note_count: Total number of notes (including rests)
+        - pitch_min: Lowest pitch (None if no sounding notes)
+        - pitch_max: Highest pitch (None if no sounding notes)
+        - pitch_std: Standard deviation of pitches (None if no sounding notes)
+    """
+    sounding_notes = [p for p in notes if p > 0]
+    
+    if not sounding_notes:
+        return {
+            "avg_pitch": None,
+            "note_count": len(notes),
+            "pitch_min": None,
+            "pitch_max": None,
+            "pitch_std": None
+        }
+    
+    # Calculate mean
+    mean_pitch = sum(sounding_notes) / len(sounding_notes)
+    
+    # Calculate standard deviation
+    if len(sounding_notes) > 1:
+        variance = sum((p - mean_pitch) ** 2 for p in sounding_notes) / len(sounding_notes)
+        std_dev = math.sqrt(variance)
+    else:
+        std_dev = 0.0
+    
+    return {
+        "avg_pitch": mean_pitch,
+        "note_count": len(notes),
+        "pitch_min": min(sounding_notes),
+        "pitch_max": max(sounding_notes),
+        "pitch_std": std_dev
+    }
 
 
 def get_pitch_stats(midi_notes: List[int]) -> dict:
