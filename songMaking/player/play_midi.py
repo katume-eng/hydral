@@ -199,8 +199,9 @@ def play_midi(
                     current_tempo
                 )
                 
-                # Apply tempo scaling (inverse because we're scaling tempo, not duration)
-                # bpm_scale > 1.0 means faster, so sleep time should be shorter
+                # Apply tempo scaling by adjusting sleep duration
+                # bpm_scale > 1.0 = faster playback, so divide to shorten sleep time
+                # bpm_scale < 1.0 = slower playback, so divide to lengthen sleep time
                 sleep_time = delta_seconds / bpm_scale
                 
                 if sleep_time > 0:
