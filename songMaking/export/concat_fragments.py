@@ -203,7 +203,7 @@ def export_concatenated_fragments(
             harmony_spec.meter_denominator = 4
             
             # Generate melody
-            midi_bytes, pitches, durations, score, pitch_stats = generate_melody_midi(
+            midi_bytes, pitches, durations, score, pitch_stats, debug_stats, enhanced_pitch_stats = generate_melody_midi(
                 harmony_spec,
                 method,
                 attempt_seed,

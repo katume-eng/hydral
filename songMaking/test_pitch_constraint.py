@@ -11,7 +11,8 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from songMaking.pitch_stats import (
     calculate_mean_pitch,
     check_pitch_constraint,
-    get_pitch_stats
+    get_pitch_stats,
+    compute_pitch_stats
 )
 from songMaking.harmony import choose_harmony
 from songMaking.generators.random import generate_random_melody
@@ -171,7 +172,7 @@ def test_generate_melody_midi_returns_pitch_stats():
     spec = choose_harmony(100, {'bars': 1, 'min_bpm': 100, 'max_bpm': 100})
     config = {'rest_probability': 0.1}
     
-    midi_bytes, pitches, durations, score, pitch_stats, debug_stats = generate_melody_midi(
+    midi_bytes, pitches, durations, score, pitch_stats, debug_stats, enhanced_pitch_stats = generate_melody_midi(
         spec, "random", 100, config
     )
     
@@ -182,6 +183,7 @@ def test_generate_melody_midi_returns_pitch_stats():
     assert score is not None, "Score should not be None"
     assert pitch_stats is not None, "Pitch stats should not be None"
     assert debug_stats is not None, "Debug stats should not be None"
+    assert enhanced_pitch_stats is not None, "Enhanced pitch stats should not be None"
     
     # Verify pitch_stats has expected keys
     assert "mean" in pitch_stats
@@ -225,6 +227,118 @@ def test_tight_constraint_requires_multiple_attempts():
     print(f"✓ test_tight_constraint_requires_multiple_attempts passed (needed {attempts_needed} attempts)")
 
 
+def test_compute_pitch_stats_basic():
+    """Test compute_pitch_stats with normal notes."""
+    notes = [60, 64, 67]  # C, E, G
+    
+    stats = compute_pitch_stats(notes)
+    
+    assert stats["note_count"] == 3, f"Expected note_count 3, got {stats['note_count']}"
+    assert stats["avg_pitch"] == (60 + 64 + 67) / 3, f"Expected avg_pitch {(60 + 64 + 67) / 3}, got {stats['avg_pitch']}"
+    assert stats["pitch_min"] == 60, f"Expected pitch_min 60, got {stats['pitch_min']}"
+    assert stats["pitch_max"] == 67, f"Expected pitch_max 67, got {stats['pitch_max']}"
+    
+    # Check standard deviation
+    mean = (60 + 64 + 67) / 3
+    variance = ((60 - mean)**2 + (64 - mean)**2 + (67 - mean)**2) / 3
+    expected_std = variance ** 0.5
+    assert abs(stats["pitch_std"] - expected_std) < 0.01, f"Expected pitch_std {expected_std}, got {stats['pitch_std']}"
+    
+    print("✓ test_compute_pitch_stats_basic passed")
+
+
+def test_compute_pitch_stats_with_rests():
+    """Test compute_pitch_stats with rests included."""
+    notes = [60, 0, 64, 0, 67]  # C, rest, E, rest, G
+    
+    stats = compute_pitch_stats(notes)
+    
+    assert stats["note_count"] == 5, f"Expected note_count 5 (including rests), got {stats['note_count']}"
+    assert stats["avg_pitch"] == (60 + 64 + 67) / 3, f"Expected avg_pitch to exclude rests"
+    assert stats["pitch_min"] == 60, f"Expected pitch_min 60, got {stats['pitch_min']}"
+    assert stats["pitch_max"] == 67, f"Expected pitch_max 67, got {stats['pitch_max']}"
+    assert stats["pitch_std"] is not None, "pitch_std should not be None"
+    
+    print("✓ test_compute_pitch_stats_with_rests passed")
+
+
+def test_compute_pitch_stats_empty_notes():
+    """Test compute_pitch_stats with empty list."""
+    notes = []
+    
+    stats = compute_pitch_stats(notes)
+    
+    assert stats["note_count"] == 0, f"Expected note_count 0, got {stats['note_count']}"
+    assert stats["avg_pitch"] is None, f"Expected avg_pitch None, got {stats['avg_pitch']}"
+    assert stats["pitch_min"] is None, f"Expected pitch_min None, got {stats['pitch_min']}"
+    assert stats["pitch_max"] is None, f"Expected pitch_max None, got {stats['pitch_max']}"
+    assert stats["pitch_std"] is None, f"Expected pitch_std None, got {stats['pitch_std']}"
+    
+    print("✓ test_compute_pitch_stats_empty_notes passed")
+
+
+def test_compute_pitch_stats_all_rests():
+    """Test compute_pitch_stats with all rests."""
+    notes = [0, 0, 0]
+    
+    stats = compute_pitch_stats(notes)
+    
+    assert stats["note_count"] == 3, f"Expected note_count 3, got {stats['note_count']}"
+    assert stats["avg_pitch"] is None, f"Expected avg_pitch None, got {stats['avg_pitch']}"
+    assert stats["pitch_min"] is None, f"Expected pitch_min None, got {stats['pitch_min']}"
+    assert stats["pitch_max"] is None, f"Expected pitch_max None, got {stats['pitch_max']}"
+    assert stats["pitch_std"] is None, f"Expected pitch_std None, got {stats['pitch_std']}"
+    
+    print("✓ test_compute_pitch_stats_all_rests passed")
+
+
+def test_compute_pitch_stats_single_note():
+    """Test compute_pitch_stats with a single note (std should be 0)."""
+    notes = [60]
+    
+    stats = compute_pitch_stats(notes)
+    
+    assert stats["note_count"] == 1, f"Expected note_count 1, got {stats['note_count']}"
+    assert stats["avg_pitch"] == 60.0, f"Expected avg_pitch 60.0, got {stats['avg_pitch']}"
+    assert stats["pitch_min"] == 60, f"Expected pitch_min 60, got {stats['pitch_min']}"
+    assert stats["pitch_max"] == 60, f"Expected pitch_max 60, got {stats['pitch_max']}"
+    assert stats["pitch_std"] == 0.0, f"Expected pitch_std 0.0 for single note, got {stats['pitch_std']}"
+    
+    print("✓ test_compute_pitch_stats_single_note passed")
+
+
+def test_generate_melody_midi_returns_enhanced_pitch_stats():
+    """Test that generate_melody_midi returns enhanced pitch statistics."""
+    spec = choose_harmony(100, {'bars': 1, 'min_bpm': 100, 'max_bpm': 100})
+    config = {'rest_probability': 0.1}
+    
+    midi_bytes, pitches, durations, score, pitch_stats, debug_stats, enhanced_pitch_stats = generate_melody_midi(
+        spec, "random", 100, config
+    )
+    
+    # Verify enhanced_pitch_stats is present
+    assert enhanced_pitch_stats is not None, "Enhanced pitch stats should not be None"
+    
+    # Verify enhanced_pitch_stats has expected keys
+    assert "avg_pitch" in enhanced_pitch_stats
+    assert "note_count" in enhanced_pitch_stats
+    assert "pitch_min" in enhanced_pitch_stats
+    assert "pitch_max" in enhanced_pitch_stats
+    assert "pitch_std" in enhanced_pitch_stats
+    
+    # Verify note_count matches pitches length
+    assert enhanced_pitch_stats["note_count"] == len(pitches), \
+        f"Expected note_count {len(pitches)}, got {enhanced_pitch_stats['note_count']}"
+    
+    # If there are sounding notes, verify avg_pitch matches mean from pitch_stats
+    if pitch_stats["mean"] is not None:
+        assert enhanced_pitch_stats["avg_pitch"] is not None, "avg_pitch should not be None when there are sounding notes"
+        assert abs(enhanced_pitch_stats["avg_pitch"] - pitch_stats["mean"]) < 0.01, \
+            "avg_pitch should match mean from pitch_stats"
+    
+    print("✓ test_generate_melody_midi_returns_enhanced_pitch_stats passed")
+
+
 if __name__ == "__main__":
     print("Running pitch constraint tests...\n")
     
@@ -239,6 +353,14 @@ if __name__ == "__main__":
     test_generation_with_pitch_constraint()
     test_generate_melody_midi_returns_pitch_stats()
     test_tight_constraint_requires_multiple_attempts()
+    
+    # New tests for compute_pitch_stats
+    test_compute_pitch_stats_basic()
+    test_compute_pitch_stats_with_rests()
+    test_compute_pitch_stats_empty_notes()
+    test_compute_pitch_stats_all_rests()
+    test_compute_pitch_stats_single_note()
+    test_generate_melody_midi_returns_enhanced_pitch_stats()
     
     print("\n" + "=" * 60)
     print("All pitch constraint tests passed! ✓")

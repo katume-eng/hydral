@@ -15,7 +15,7 @@ from songMaking.generators.scored import generate_scored_melody
 from songMaking.generators.markov import generate_markov_melody
 from songMaking.export_midi import create_melody_midi, save_midi_file
 from songMaking.eval import aggregate_melody_score
-from songMaking.pitch_stats import check_pitch_constraint, get_pitch_stats
+from songMaking.pitch_stats import check_pitch_constraint, get_pitch_stats, compute_pitch_stats
 
 # Configure logging
 logging.basicConfig(
@@ -35,7 +35,7 @@ def generate_melody_midi(harmony_spec, method: str, seed: int, config: dict):
         config: Method-specific configuration
     
     Returns:
-        (midi_bytes, pitches, durations, score_value, pitch_stats, debug_stats)
+        (midi_bytes, pitches, durations, score_value, pitch_stats, debug_stats, enhanced_pitch_stats)
     """
     debug_stats = {}
     
@@ -69,7 +69,10 @@ def generate_melody_midi(harmony_spec, method: str, seed: int, config: dict):
     # Calculate pitch statistics
     pitch_stats = get_pitch_stats(pitches)
     
-    return midi_bytes, pitches, durations, score_value, pitch_stats, debug_stats
+    # Calculate enhanced pitch statistics for JSON export
+    enhanced_pitch_stats = compute_pitch_stats(pitches)
+    
+    return midi_bytes, pitches, durations, score_value, pitch_stats, debug_stats, enhanced_pitch_stats
 
 
 def main():
@@ -198,6 +201,7 @@ def main():
     score = None
     pitch_stats = None
     debug_stats = None
+    enhanced_pitch_stats = None
     
     while attempt < args.max_attempts:
         attempt += 1
@@ -205,7 +209,7 @@ def main():
         # Use different seed for each attempt to get variation
         attempt_seed = args.seed + attempt - 1
         
-        midi_bytes, pitches, durations, score, pitch_stats, debug_stats = generate_melody_midi(
+        midi_bytes, pitches, durations, score, pitch_stats, debug_stats, enhanced_pitch_stats = generate_melody_midi(
             harmony_spec,
             args.method,
             attempt_seed,
@@ -290,7 +294,11 @@ def main():
                 "max": pitch_stats["max"],
                 "range": pitch_stats["range"],
                 "sounding_count": pitch_stats["sounding_count"]
-            }
+            },
+            "avg_pitch": round(enhanced_pitch_stats["avg_pitch"], 2) if enhanced_pitch_stats["avg_pitch"] is not None else None,
+            "pitch_min": enhanced_pitch_stats["pitch_min"],
+            "pitch_max": enhanced_pitch_stats["pitch_max"],
+            "pitch_std": round(enhanced_pitch_stats["pitch_std"], 2) if enhanced_pitch_stats["pitch_std"] is not None else None
         },
         "debug_stats": {
             "duration_distribution": debug_stats.get("duration_distribution", {}) if debug_stats else {},
