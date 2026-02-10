@@ -64,6 +64,7 @@ def compute_pitch_stats(notes: List[int]) -> Dict[str, Any]:
         - note_count: Total number of notes (including rests)
         - pitch_min: Lowest pitch (None if no sounding notes)
         - pitch_max: Highest pitch (None if no sounding notes)
+        - pitch_range: Pitch range (max - min, None if no sounding notes)
         - pitch_std: Standard deviation of pitches (None if no sounding notes)
     """
     sounding_notes = [p for p in notes if p > 0]
@@ -74,6 +75,7 @@ def compute_pitch_stats(notes: List[int]) -> Dict[str, Any]:
             "note_count": len(notes),
             "pitch_min": None,
             "pitch_max": None,
+            "pitch_range": None,
             "pitch_std": None
         }
     
@@ -87,11 +89,15 @@ def compute_pitch_stats(notes: List[int]) -> Dict[str, Any]:
     else:
         std_dev = 0.0
     
+    min_pitch = min(sounding_notes)
+    max_pitch = max(sounding_notes)
+    
     return {
         "avg_pitch": mean_pitch,
         "note_count": len(notes),
-        "pitch_min": min(sounding_notes),
-        "pitch_max": max(sounding_notes),
+        "pitch_min": min_pitch,
+        "pitch_max": max_pitch,
+        "pitch_range": max_pitch - min_pitch,
         "pitch_std": std_dev
     }
 
