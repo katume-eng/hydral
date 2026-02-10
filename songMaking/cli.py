@@ -382,6 +382,7 @@ def main():
             "avg_pitch": round(enhanced_pitch_stats["avg_pitch"], 2) if enhanced_pitch_stats["avg_pitch"] is not None else None,
             "pitch_min": enhanced_pitch_stats["pitch_min"],
             "pitch_max": enhanced_pitch_stats["pitch_max"],
+            "pitch_range": enhanced_pitch_stats["pitch_range"],
             "pitch_std": round(enhanced_pitch_stats["pitch_std"], 2) if enhanced_pitch_stats["pitch_std"] is not None else None
         },
         "debug_stats": {

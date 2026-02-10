@@ -237,6 +237,7 @@ def test_compute_pitch_stats_basic():
     assert stats["avg_pitch"] == (60 + 64 + 67) / 3, f"Expected avg_pitch {(60 + 64 + 67) / 3}, got {stats['avg_pitch']}"
     assert stats["pitch_min"] == 60, f"Expected pitch_min 60, got {stats['pitch_min']}"
     assert stats["pitch_max"] == 67, f"Expected pitch_max 67, got {stats['pitch_max']}"
+    assert stats["pitch_range"] == 7, f"Expected pitch_range 7, got {stats['pitch_range']}"
     
     # Check standard deviation
     mean = (60 + 64 + 67) / 3
@@ -257,6 +258,7 @@ def test_compute_pitch_stats_with_rests():
     assert stats["avg_pitch"] == (60 + 64 + 67) / 3, f"Expected avg_pitch to exclude rests"
     assert stats["pitch_min"] == 60, f"Expected pitch_min 60, got {stats['pitch_min']}"
     assert stats["pitch_max"] == 67, f"Expected pitch_max 67, got {stats['pitch_max']}"
+    assert stats["pitch_range"] == 7, f"Expected pitch_range 7, got {stats['pitch_range']}"
     assert stats["pitch_std"] is not None, "pitch_std should not be None"
     
     print("✓ test_compute_pitch_stats_with_rests passed")
@@ -272,6 +274,7 @@ def test_compute_pitch_stats_empty_notes():
     assert stats["avg_pitch"] is None, f"Expected avg_pitch None, got {stats['avg_pitch']}"
     assert stats["pitch_min"] is None, f"Expected pitch_min None, got {stats['pitch_min']}"
     assert stats["pitch_max"] is None, f"Expected pitch_max None, got {stats['pitch_max']}"
+    assert stats["pitch_range"] is None, f"Expected pitch_range None, got {stats['pitch_range']}"
     assert stats["pitch_std"] is None, f"Expected pitch_std None, got {stats['pitch_std']}"
     
     print("✓ test_compute_pitch_stats_empty_notes passed")
@@ -287,6 +290,7 @@ def test_compute_pitch_stats_all_rests():
     assert stats["avg_pitch"] is None, f"Expected avg_pitch None, got {stats['avg_pitch']}"
     assert stats["pitch_min"] is None, f"Expected pitch_min None, got {stats['pitch_min']}"
     assert stats["pitch_max"] is None, f"Expected pitch_max None, got {stats['pitch_max']}"
+    assert stats["pitch_range"] is None, f"Expected pitch_range None, got {stats['pitch_range']}"
     assert stats["pitch_std"] is None, f"Expected pitch_std None, got {stats['pitch_std']}"
     
     print("✓ test_compute_pitch_stats_all_rests passed")
@@ -302,6 +306,7 @@ def test_compute_pitch_stats_single_note():
     assert stats["avg_pitch"] == 60.0, f"Expected avg_pitch 60.0, got {stats['avg_pitch']}"
     assert stats["pitch_min"] == 60, f"Expected pitch_min 60, got {stats['pitch_min']}"
     assert stats["pitch_max"] == 60, f"Expected pitch_max 60, got {stats['pitch_max']}"
+    assert stats["pitch_range"] == 0, f"Expected pitch_range 0, got {stats['pitch_range']}"
     assert stats["pitch_std"] == 0.0, f"Expected pitch_std 0.0 for single note, got {stats['pitch_std']}"
     
     print("✓ test_compute_pitch_stats_single_note passed")
@@ -324,6 +329,7 @@ def test_generate_melody_midi_returns_enhanced_pitch_stats():
     assert "note_count" in enhanced_pitch_stats
     assert "pitch_min" in enhanced_pitch_stats
     assert "pitch_max" in enhanced_pitch_stats
+    assert "pitch_range" in enhanced_pitch_stats
     assert "pitch_std" in enhanced_pitch_stats
     
     # Verify note_count matches pitches length
@@ -335,6 +341,9 @@ def test_generate_melody_midi_returns_enhanced_pitch_stats():
         assert enhanced_pitch_stats["avg_pitch"] is not None, "avg_pitch should not be None when there are sounding notes"
         assert abs(enhanced_pitch_stats["avg_pitch"] - pitch_stats["mean"]) < 0.01, \
             "avg_pitch should match mean from pitch_stats"
+        assert enhanced_pitch_stats["pitch_range"] is not None, "pitch_range should not be None when there are sounding notes"
+        assert enhanced_pitch_stats["pitch_range"] == enhanced_pitch_stats["pitch_max"] - enhanced_pitch_stats["pitch_min"], \
+            "pitch_range should equal pitch_max - pitch_min"
     
     print("✓ test_generate_melody_midi_returns_enhanced_pitch_stats passed")
 
