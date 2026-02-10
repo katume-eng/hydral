@@ -140,6 +140,24 @@ def normalize_peak(audio: np.ndarray, target_db: float = -1.0) -> np.ndarray:
     return audio
 
 
+def compute_rms(audio: np.ndarray) -> float:
+    """
+    Compute RMS (Root Mean Square) value of audio.
+    
+    For multi-channel audio, computes RMS across all channels combined,
+    providing a single overall power measurement.
+    
+    Args:
+        audio: Input audio array in the format:
+               - Mono: shape (samples,)
+               - Multi-channel: shape (channels, samples)
+        
+    Returns:
+        RMS value as a float
+    """
+    return float(np.sqrt(np.mean(audio ** 2)))
+
+
 def split_into_bands(
     input_path: Path,
     output_dir: Path,
@@ -259,6 +277,9 @@ def split_into_bands(
                 subtype='FLOAT'
             )
             
+            # Compute RMS for this output
+            rms_value = compute_rms(comp_audio)
+            
             # Add to manifest
             comp_duration = len(comp_audio) / sr if comp_audio.ndim == 1 else comp_audio.shape[1] / sr
             manifest["outputs"].append({
@@ -269,6 +290,7 @@ def split_into_bands(
                 "channels": channels,
                 "duration_sec": float(comp_duration),
                 "format": "float32",
+                "rms_average": rms_value,
             })
     
     # Write manifest JSON
