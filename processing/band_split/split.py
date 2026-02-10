@@ -144,6 +144,9 @@ def compute_rms(audio: np.ndarray) -> float:
     """
     Compute RMS (Root Mean Square) value of audio.
     
+    For multi-channel audio, computes RMS across all channels combined,
+    providing a single overall power measurement.
+    
     Args:
         audio: Input audio array (mono or multi-channel)
         
