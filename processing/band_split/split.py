@@ -148,7 +148,9 @@ def compute_rms(audio: np.ndarray) -> float:
     providing a single overall power measurement.
     
     Args:
-        audio: Input audio array (mono or multi-channel)
+        audio: Input audio array in the format:
+               - Mono: shape (samples,)
+               - Multi-channel: shape (channels, samples)
         
     Returns:
         RMS value as a float
