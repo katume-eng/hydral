@@ -1,261 +1,271 @@
-# Hydral
+# タイトル
+Hydral
 
-Hydral is a modular audio–analysis and audio–processing framework designed to convert sound into structured numerical data and controllable signals for visual expression, generative art, and interactive systems.
+## 概要
+Hydralは、音を構造化された数値データと制御可能な信号に変換するためのモジュラー音声分析および音声処理フレームワークです。このフレームワークは、視覚表現、生成アート、およびインタラクティブシステムに使用されます。
 
-The project is intentionally split into clearly separated layers (core / analysis / pipelines / frontend) so that sound can be treated differently depending on purpose: as an object to manipulate, as a signal to analyze, or as data to drive visuals.
+このリポジトリは現在、次の2つの主要な領域に重点を置いています：
+1. WAV音声を時間系列特徴に変換する音声分析パイプライン
+2. アルゴリズミックMIDIメロディ生成システム（songMaking）
 
-This repository currently focuses on the analysis pipeline that transforms WAV audio into time–series features usable in environments such as p5.js.
+## 哲学
+サウンドは目的に応じて異なる方法で扱うべきです。
 
-## Philosophy
+## 必要要件
 
-Hydral is built around a simple principle:
+### 外部依存
+- **ffmpeg** (PATHに配置)
 
-> **The same sound should be handled differently depending on what you want to do with it.**
-
-- **Editing and composing sound** requires audio objects
-- **Measuring and understanding sound** requires signals and numbers
-- **Expressing sound visually** requires stable control parameters
-
-Hydral formalizes this separation instead of mixing concerns into a single, fragile pipeline.
-
-## Core Concepts
-
-### 1. Layer Separation
-
-| Layer | Purpose | Representation |
-| ------- | --------- | ----------------- |
-| **core** | Editing, playback, synthesis | AudioSegment (pydub) |
-| **analysis** | Measurement, decomposition | NumPy arrays (librosa) |
-| **pipelines** | Execution logic | Structured feature dictionaries |
-| **frontend** | Expression & visualization | p5.js / Web / Graphics |
-
-This is not duplication — it is intentional decoupling.
-
-### 2. Analysis Features
-
-Hydral currently extracts the following time–series features:
-
-#### RMS Energy
-
-- Represents overall loudness per frame
-- Suitable for continuous controls (scale, brightness, zoom)
-
-#### Frequency Band Energies
-
-- **Low:** 20–200 Hz
-- **Mid:** 200–2000 Hz
-- **High:** 2000–8000 Hz
-
-These allow separation of musical structure and timbre.
-
-#### Onset Strength
-
-- Detects sudden changes in sound
-- Best used as event triggers rather than continuous values
-
-#### Smoothing
-
-- Moving average filtering
-- Converts noisy raw features into stable control signals
-
-## Analysis Pipeline
-
-The standard analysis pipeline follows this flow:
-
-1. Load WAV → waveform + sample rate
-2. Extract numerical features (RMS, bands, onset)
-3. Smooth signals for visual stability
-4. Return structured feature data
-
-### Example Usage
-
-```python
-from pipelines.analysis_pipelines import run_audio_analysis_pipeline
-
-features = run_audio_analysis_pipeline(
-    "input.wav",
-    hop_length=512,
-    smoothing_window=5
-)
-```
-
-The resulting features dictionary can be:
-
-- Serialized to JSON
-- Synchronized with audio playback
-- Consumed directly by visualization systems
-
-## External Dependencies
-
-- **ffmpeg** (required, available in PATH)
-
-### Python Libraries
-
+### Pythonライブラリ
 - numpy
 - librosa
 - scipy
 - pydub
+- midiutil (MIDI生成に必要)
+- pretty_midi (フラグメント連結に必要、オプション)
+- mido, pygame (MIDI再生に必要、オプション)
 
-## Design Principles
-
-- Single responsibility per module
-- No hidden side effects
-- Stable time alignment across all features
-- Analysis results must be explainable and debuggable
-
-> Hydral prioritizes clarity over cleverness.
-
-## Intended Use Cases
-
-- Audio–driven generative visuals (p5.js, WebGL)
-- Music video prototyping
-- Interactive installations
-- Research experiments in audio–visual mapping
-- Preprocessing for machine learning pipelines
-
-## Non‑Goals (For Now)
-
-- Real‑time streaming analysis
-- End‑user audio editing UI
-
-Hydral is deliberately low‑level and composable.
-
-## Song Generation (songMaking)
-
-The `/songMaking` subsystem generates MIDI melodies using various algorithmic approaches. This is **separate from and independent of** water audio editing - it exists in the same repository purely for unified tooling and workflow management.
-
-### Generation Methods
-
-Three distinct algorithms are available:
-
-- **random**: Constrained random selection within harmonic boundaries
-- **scored**: Generates multiple candidates and selects highest-quality via evaluation metrics
-- **markov**: N-gram transition model trained on synthetic melodic patterns
-
-### Usage
-
+## インストール
 ```bash
-# Generate using random method
+pip install -r requirements.txt
+```
+
+## 音楽生成（songMaking）
+
+### 生成方式
+3つの異なるアルゴリズム：
+- **random**: ハーモニック境界内での制約付きランダム選択
+- **scored**: 複数の候補を生成し、評価指標によって最高品質を選択
+- **markov**: 合成メロディパターンに基づくN-グラム遷移モデル
+
+### 基本的な使い方
+```bash
+# 最小例
 python -m songMaking.cli --method random --seed 42
 
-# Generate with scored method (evaluates multiple candidates)
+# 方式を指定
 python -m songMaking.cli --method scored --seed 123 --candidates 20
-
-# Generate with Markov chains
 python -m songMaking.cli --method markov --seed 999 --ngram-order 2
 
-# Customize tempo range
+# テンポ範囲を指定
 python -m songMaking.cli --method random --seed 42 --min-bpm 100 --max-bpm 160
 ```
 
-### Concatenated Fragment Export
+### 出力ファイル
+各生成は、`songMaking/output/`に2つのファイルを生成します：
+- **MIDIファイル** (`.mid`): 演奏可能なメロディ
+- **JSONメタデータ** (`.json`): 完全な生成パラメータおよびメトリクス
 
-Generate multiple short melody fragments and concatenate them into a single MIDI file with constraint-based filtering:
+ファイル名のパターン：
+```
+melody_{method}_seed{seed}_{timestamp}.mid
+melody_{method}_seed{seed}_{timestamp}.json
+```
 
+### 再現性
+同じシードとパラメータを与えれば、生成は**完全に決定論的**です：
 ```bash
-# Generate 20 fragments (2 bars each) with 1-beat gaps
+# これらは同一のMIDI出力を生成します
+python -m songMaking.cli --method random --seed 42
+python -m songMaking.cli --method random --seed 42
+```
+
+### フラグメント連結
+複数の短いメロディ断片を生成し、それらを連結します：
+```bash
 python -m songMaking.export.concat_fragments --method random --seed 123 --out outputs/audition_001
-
-# Customize fragment count, length, and gaps
-python -m songMaking.export.concat_fragments --method markov --seed 456 \
-  --n-fragments 30 --bars 4 --gap-beats 2.0 --out outputs/long_session
-
-# Apply pitch constraints (MIDI note numbers)
-python -m songMaking.export.concat_fragments --method scored --seed 789 \
-  --min-pitch 60 --max-pitch 84 --target-mean-pitch 72 --mean-tolerance 6 \
-  --out outputs/constrained_range
 ```
 
-Each fragment is generated independently with its own harmony spec. Constraints are checked per fragment, with automatic retry (up to `--max-attempts`, default 25) until requirements are met.
-
-### Interactive Audition
-
-The audition tool generates concatenated fragments and optionally plays them back (if `pygame.midi` is available):
-
+### MIDI再生
+生成されたMIDIファイルを再生します：
 ```bash
-# Generate and audition fragments
-python -m songMaking.player.audition --method random --seed 999 --n-fragments 15
-
-# With constraints and custom output
-python -m songMaking.player.audition --method markov --seed 123 \
-  --min-pitch 55 --max-pitch 79 --out outputs/audition_session_01
-```
-
-If `pygame.midi` is not installed, fragments are still generated and exported for playback in external MIDI players.
-
-### MIDI Playback
-
-Play any generated MIDI file with precise control over tempo, instrument, and playback parameters:
-
-```bash
-# Basic playback
 python -m songMaking.player.play_midi songMaking/output/melody_001.mid
-
-# Play with different instrument (e.g., electric guitar = program 26)
-python -m songMaking.player.play_midi song.mid --program 26
-
-# Slow down to 50% speed for detailed listening
-python -m songMaking.player.play_midi song.mid --bpm-scale 0.5
-
-# Speed up to 1.5x for quick audition
-python -m songMaking.player.play_midi song.mid --bpm-scale 1.5
-
-# List available MIDI devices
-python -m songMaking.player.play_midi --list-devices
+python -m songMaking.player.play_midi song.mid --bpm-scale 0.5  # 半速
 ```
 
-**Requirements:** `pip install mido pygame`
+## 生成メタデータ仕様（JSON）
 
-**Features:**
-- Accurate timing with tempo change support
-- Tempo scaling via `--bpm-scale` (0.5 = half speed, 2.0 = double speed)
-- Instrument override via `--program` (0-127, General MIDI)
-- Clean Ctrl+C handling
+### ファイル名規則
+JSONメタデータファイルは`{basename}.json`と命名され、対応する`.mid`ファイルとペアになります。
 
-### Output
+### 完全なJSONスキーマ
 
-Each generation produces two files in `songMaking/output/`:
+※実装で確認したキーのみ記載。以下は`songMaking/cli.py`の`generate_melody_midi()`が出力する実際のフォーマットです。
 
-- **MIDI file** (`.mid`): Playable melody
-- **JSON metadata** (`.json`): Complete generation parameters including:
-  - Method used
-  - Random seed (for reproducibility)
-  - Harmonic specification (key, scale, tempo, time signature, chord progression)
-  - Generation config (candidates, n-gram order, etc.)
-  - Quality metrics
+#### トップレベルキー
 
-### Reproducibility
+| キー | 型 | 説明 | 例 |
+|-----|-----|------|-----|
+| `method` | string | 生成方式 | `"random"`, `"scored"`, `"markov"` |
+| `seed` | integer | 乱数シード（再現性） | `42` |
+| `timestamp` | string | 生成時刻 (YYYYMMDD_HHMMSS) | `"20260211_143052"` |
+| `harmony` | object | 調性・拍子・テンポ等のハーモニー設定 | (下記参照) |
+| `structure` | object | 構造制約（リピート、リズムプロファイル等） | (下記参照) |
+| `generation_config` | object | 生成パラメータ（rest_probability等） | |
+| `pitch_constraint` | object | ピッチ制約の設定と試行回数 | (下記参照) |
+| `result` | object | 生成結果のメトリクス | (下記参照) |
+| `debug_stats` | object | デバッグ用統計情報 | (下記参照) |
 
-Given the same seed and parameters, generation is **fully deterministic**:
+#### `harmony`オブジェクト
 
-```bash
-# These produce identical MIDI output
-python -m songMaking.cli --method random --seed 42
-python -m songMaking.cli --method random --seed 42
-```
+| キー | 型 | 説明 | 例 |
+|-----|-----|------|-----|
+| `tonic` | string | トニック音名 | `"C"`, `"F#"`, `"Bb"` |
+| `scale_intervals` | array[integer] | スケールの半音階間隔 | `[0, 2, 4, 5, 7, 9, 11]` (Ionian) |
+| `chord_progression` | array[string] | コード進行（ローマ数字表記） | `[`I`, `IV`, `V`, `vi`]` |
+| `tempo_bpm` | integer | テンポ（BPM） | `120` |
+| `time_signature` | string | 拍子記号 | `"4/4"` |
+| `pitch_range` | array[integer] | [最低MIDIノート番号, 最高MIDIノート番号] | `[60, 84]` |
+| `subdivision` | float | 最小リズム分割単位（拍数） | `0.25` (16分音符) |
+| `measures` | integer | 小節数 | `2` |
 
-### Key Design Principles
+#### `structure`オブジェクト
 
-- **Harmonic spec separation**: `HarmonySpec` defines musical context, generators implement methods
-- **Pluggable methods**: All generators consume same `HarmonySpec` interface
-- **Evaluation-driven**: Scoring functions (`eval.py`) assess melody quality
-- **No cross-contamination**: `/songMaking` does not depend on `/hydral` water audio tools
+| キー | 型 | 説明 | 例 |
+|-----|-----|------|-----|
+| `enabled` | boolean | 構造制約が有効か | `true` / `false` |
+| `repeat_unit_beats` | float \| null | リピート単位の長さ（拍数） | `4.0` (4/4で1小節), `null` |
+| `rhythm_profile` | object \| null | リズムプロファイル {duration: proportion} | `{"0.5": 0.6, "1.0": 0.4}` |
+| `allow_motif_variation` | boolean | モチーフの変奏を許可 | `true` / `false` |
+| `variation_probability` | float | 変奏の確率 (0.0-1.0) | `0.3` |
+
+#### `pitch_constraint`オブジェクト
+
+| キー | 型 | 説明 | 例 |
+|-----|-----|------|-----|
+| `enabled` | boolean | ピッチ制約が有効か | `true` / `false` |
+| `target_mean` | float \| null | 目標平均ピッチ（MIDIノート番号） | `60.0` (Middle C) |
+| `tolerance` | float \| null | 許容誤差（半音） | `2.0` |
+| `max_attempts` | integer \| null | 最大試行回数 | `100` |
+| `attempts_used` | integer | 実際の試行回数 | `5` |
+
+#### `result`オブジェクト
+
+| キー | 型 | 説明 | 単位・計算方法 | 例 |
+|-----|-----|------|-------------|-----|
+| `note_count` | integer | ノート総数（休符含む） | 休符（pitch=0）も数える | `16` |
+| `quality_score` | float | 品質スコア | 0.0-1.0 (scoredメソッドで計算) | `0.7532` |
+| `total_duration_beats` | float | 合計長さ | ビート単位 (quarter note = 1 beat) | `8.0` |
+| `pitch_stats` | object | ピッチ統計（レガシー用） | (下記参照) | 
+| `avg_pitch` | float \| null | 平均ピッチ | 発音ノートのMIDI番号平均（休符除外）。発音ノートが0個なら `null` | `72.5` |
+| `pitch_min` | integer \| null | 最低ピッチ | MIDIノート番号。発音ノートが0個なら `null` | `60` |
+| `pitch_max` | integer \| null | 最高ピッチ | MIDIノート番号。発音ノートが0個なら `null` | `84` |
+| `pitch_range` | integer \| null | ピッチ幅 | `pitch_max - pitch_min`。発音ノートが0個なら `null` | `24` |
+| `pitch_std` | float \| null | ピッチ標準偏差 | √(Σ(p - mean)² / N)。発音ノートが0個なら `null` | `4.23` |
+
+**`pitch_stats`オブジェクト（レガシー互換用）:**
+
+| キー | 型 | 説明 | 例 |
+|-----|-----|------|-----|
+| `mean` | float \| null | 平均ピッチ（`avg_pitch`と同値） | `72.5` |
+| `min` | integer \| null | 最低ピッチ（`pitch_min`と同値） | `60` |
+| `max` | integer \| null | 最高ピッチ（`pitch_max`と同値） | `84` |
+| `range` | integer \| null | ピッチ幅（`pitch_range`と同値） | `24` |
+| `sounding_count` | integer | 発音ノート数（休符除外） | `12` |
+
+#### `debug_stats`オブジェクト
+
+| キー | 型 | 説明 | 例 |
+|-----|-----|------|-----|
+| `duration_distribution` | object | 音価の分布 {duration_beats: count} | `{"0.5": 8, "1.0": 4}` |
+| `scale_out_rejections` | integer | スケール外ピッチの棄却数 | `0` |
+| `octave_up_events` | integer | オクターブ上げイベント数 | `1` |
+| `total_beats` | float | 合計ビート数 | `8.0` |
+| `repeat_count` | integer | リピート回数 | `2` |
+| `actual_duration_distribution` | object | 実際の音価割合 {duration: proportion} | `{"0.5": 0.625, "1.0": 0.375}` |
+
+### メトリクス定義
+
+#### ピッチ系メトリクス
+
+**avg_pitch (平均ピッチ)**
+- **定義**: `mean(p_i)`ただし`p_i`は各発音ノートのMIDIピッチ番号
+- **計算対象**: 休符（`pitch = 0`）は除外
+- **型**: float | null
+- **単位**: MIDIノート番号（60 = Middle C）
+- **実装**: `songMaking/pitch_stats.py`の`compute_pitch_stats()`
+
+**note_count (ノート数)**
+- **定義**: ノートイベントの総数
+- **計算対象**: 休符を**含む**
+- **型**: integer
+- **実装**: `len(pitches)`（`pitches`はMIDI pitch値のリスト）
+
+**pitch_min / pitch_max**
+- **定義**: `min(p_i)` / `max(p_i)`ただし`p_i`は発音ノートのMIDIピッチ
+- **計算対象**: 休符は除外
+- **型**: integer | null
+- **単位**: MIDIノート番号
+
+**pitch_range**
+- **定義**: `pitch_max - pitch_min`
+- **型**: integer | null
+- **単位**: 半音
+
+**pitch_std (ピッチ標準偏差)**
+- **定義**: `√(Σ(p_i - avg_pitch)² / N)`ただしNは発音ノート数
+- **計算対象**: 休符は除外
+- **型**: float | null
+- **単位**: 半音（標準偏差）
+- **特殊ケース**: 発音ノート1個のみの場合は`0.0`
+
+#### リズム系メトリクス
+
+**total_duration_beats**
+- **定義**: `Σ duration_i`
+- **型**: float
+- **単位**: beats (quarter note = 1 beat)
+
+**duration_distribution**
+- **定義**: 各音価の出現回数
+- **型**: object `{duration_beats: count}`
+- **例**: `{"0.5": 8, "1.0": 4}` → 8分音符8個、4分音符4個
+
+**actual_duration_distribution**
+- **定義**: 各音価の割合
+- **型**: object `{duration_beats: proportion}`
+- **計算**: `count / total_count`
+- **例**: `{"0.5": 0.667, "1.0": 0.333}`
+
+### 実装依存の注意事項
+
+1. **休符の扱い**  
+   - MIDI pitch値`0`を休符として扱う  
+   - `note_count`は休符を**含む**が、`avg_pitch`等のピッチ統計は休符を**除外**
+
+2. **ノートオン/オフの単位**  
+   - 1ノート = MIDIUtilの`addNote()`1回呼び出し  
+   - 和音（同時発音）は未実装（現在は単旋律のみ）
+
+3. **時間単位**  
+   - すべてのdurationは**ビート単位**(quarter note = 1.0 beat)  
+   - BPMとの関係: `duration_seconds = (duration_beats / tempo_bpm) * 60.0`
+
+4. **MIDIチャンネル**  
+   - 常にchannel 0  
+   - 楽器: Acoustic Grand Piano (program 0)
+
+5. **テンポ変更**  
+   - 1曲中でテンポは固定（`tempo_bpm`の値）
+
+## Audio Analysis Pipeline
+
+(保持する既存の音声分析内容)
+
+## Design Principles
+
+- 各モジュールの単一責任
+- 隠れた副作用なし
+- すべての特徴にわたる安定した時間整合性
+- 分析結果は説明可能でデバッグ可能である必要があります
+- `/songMaking`は`/hydral`の水音声ツールに依存しません
+
+> Hydralは、単に聞くものではなく、計測し、構造化し、表現に変換するものとして音を扱います。
 
 ## Status
 
-This project is under active development. Interfaces may evolve, but layer separation and analysis semantics are considered stable.
-
-### Future Extensions
-
-- Feature normalization utilities
-- JSON exporters
-- Beat and tempo extraction
-- Real‑time analysis bridges
+このプロジェクトはアクティブに開発中です。インターフェースは進化する可能性がありますが、レイヤー分離と分析セマンティクスは安定したものと見なされます。
 
 ## License
 
-To be determined.
-
----
-
-**Hydral treats sound not as something to merely hear, but as something to measure, structure, and transform into expression.**
+未定。
