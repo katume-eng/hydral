@@ -16,7 +16,13 @@ from songMaking.generators.scored import generate_scored_melody
 from songMaking.generators.markov import generate_markov_melody
 from songMaking.export_midi import create_melody_midi, save_midi_file
 from songMaking.eval import aggregate_melody_score
-from songMaking.pitch_stats import check_pitch_constraint, get_pitch_stats, compute_pitch_stats
+from songMaking.pitch_stats import (
+    check_pitch_constraint,
+    get_pitch_stats,
+    compute_pitch_stats,
+    extract_melody_pitches_from_midi,
+    calculate_mean_interval
+)
 
 # Configure logging
 logging.basicConfig(
@@ -338,6 +344,10 @@ def main():
     save_midi_file(midi_bytes, str(midi_filename))
     print(f"\nSaved MIDI: {midi_filename}")
     
+    # Calculate mean interval from MIDI events
+    melody_pitches = extract_melody_pitches_from_midi(midi_bytes)
+    mean_interval = calculate_mean_interval(melody_pitches)
+    
     # Save metadata JSON
     metadata = {
         "method": args.method,
@@ -383,7 +393,8 @@ def main():
             "pitch_min": enhanced_pitch_stats["pitch_min"],
             "pitch_max": enhanced_pitch_stats["pitch_max"],
             "pitch_range": enhanced_pitch_stats["pitch_range"],
-            "pitch_std": round(enhanced_pitch_stats["pitch_std"], 2) if enhanced_pitch_stats["pitch_std"] is not None else None
+            "pitch_std": round(enhanced_pitch_stats["pitch_std"], 2) if enhanced_pitch_stats["pitch_std"] is not None else None,
+            "mean_interval": round(mean_interval, 4)
         },
         "debug_stats": {
             "duration_distribution": debug_stats.get("duration_distribution", {}) if debug_stats else {},

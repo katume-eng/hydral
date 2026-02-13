@@ -152,6 +152,7 @@ JSONメタデータファイルは`{basename}.json`と命名され、対応す�
 | `pitch_max` | integer \| null | 最高ピッチ | MIDIノート番号。発音ノートが0個なら `null` | `84` |
 | `pitch_range` | integer \| null | ピッチ幅 | `pitch_max - pitch_min`。発音ノートが0個なら `null` | `24` |
 | `pitch_std` | float \| null | ピッチ標準偏差 | √(Σ(p - mean)² / N)。発音ノートが0個なら `null` | `4.23` |
+| `mean_interval` | float | 平均跳躍幅 | 隣接する2音の半音差絶対値の平均 | `3.25` |
 
 **`pitch_stats`オブジェクト（レガシー互換用）:**
 
@@ -208,6 +209,12 @@ JSONメタデータファイルは`{basename}.json`と命名され、対応す�
 - **型**: float | null
 - **単位**: 半音（標準偏差）
 - **特殊ケース**: 発音ノート1個のみの場合は`0.0`
+
+**mean_interval (平均跳躍幅)**
+- **定義**: `mean(abs(p_i - p_{i-1}))`
+- **計算対象**: MIDI生成後のnote_on (velocity > 0) を時系列順に並べたピッチ列。同tick内は最高音のみ採用
+- **型**: float
+- **単位**: 半音
 
 #### リズム系メトリクス
 
