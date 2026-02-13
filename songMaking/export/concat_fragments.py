@@ -246,11 +246,13 @@ def export_concatenated_fragments(
         
         # Record metadata
         mean_pitch, min_pitch, max_pitch = best_stats
+        note_count = sum(len(inst.notes) for inst in best_fragment.instruments)
         fragment_meta = {
             "index": i,
             "start_time_sec": current_time_sec,
             "end_time_sec": current_time_sec + fragment_duration_sec,
             "duration_sec": fragment_duration_sec,
+            "note_count": note_count,
             "mean_pitch": float(mean_pitch),
             "min_pitch": int(min_pitch),
             "max_pitch": int(max_pitch),
