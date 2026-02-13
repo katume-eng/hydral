@@ -311,7 +311,7 @@ def test_compute_pitch_stats_single_note():
     assert stats["pitch_max"] == 60, f"Expected pitch_max 60, got {stats['pitch_max']}"
     assert stats["pitch_range"] == 0, f"Expected pitch_range 0, got {stats['pitch_range']}"
     assert stats["pitch_std"] == 0.0, f"Expected pitch_std 0.0 for single note, got {stats['pitch_std']}"
-    
+
     print("✓ test_compute_pitch_stats_single_note passed")
 
 
@@ -320,11 +320,11 @@ def test_calculate_mean_interval_basic():
     pitches = [60, 62, 67]
     mean_interval = calculate_mean_interval(pitches)
     assert abs(mean_interval - 3.5) < 0.01, f"Expected mean_interval 3.5, got {mean_interval}"
-    
+
     pitches = [60]
     mean_interval = calculate_mean_interval(pitches)
     assert mean_interval == 0.0, f"Expected mean_interval 0.0, got {mean_interval}"
-    
+
     print("✓ test_calculate_mean_interval_basic passed")
 
 
@@ -333,10 +333,10 @@ def test_extract_melody_pitches_from_midi():
     pitches = [60, 62, 67]
     durations = [1.0, 1.0, 1.0]
     midi_bytes = create_melody_midi(pitches, durations, 120, (4, 4))
-    
+
     extracted = extract_melody_pitches_from_midi(midi_bytes)
     assert extracted == pitches, f"Expected extracted {pitches}, got {extracted}"
-    
+
     print("✓ test_extract_melody_pitches_from_midi passed")
 
 
