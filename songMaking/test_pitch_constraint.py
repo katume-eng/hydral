@@ -10,13 +10,16 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from songMaking.pitch_stats import (
     calculate_mean_pitch,
+    calculate_mean_interval,
     check_pitch_constraint,
     get_pitch_stats,
-    compute_pitch_stats
+    compute_pitch_stats,
+    extract_melody_pitches_from_midi
 )
 from songMaking.harmony import choose_harmony
 from songMaking.generators.random import generate_random_melody
 from songMaking.cli import generate_melody_midi
+from songMaking.export_midi import create_melody_midi
 
 
 def test_calculate_mean_pitch_basic():
@@ -312,6 +315,31 @@ def test_compute_pitch_stats_single_note():
     print("✓ test_compute_pitch_stats_single_note passed")
 
 
+def test_calculate_mean_interval_basic():
+    """Test mean interval calculation."""
+    pitches = [60, 62, 67]
+    mean_interval = calculate_mean_interval(pitches)
+    assert abs(mean_interval - 3.5) < 0.01, f"Expected mean_interval 3.5, got {mean_interval}"
+    
+    pitches = [60]
+    mean_interval = calculate_mean_interval(pitches)
+    assert mean_interval == 0.0, f"Expected mean_interval 0.0, got {mean_interval}"
+    
+    print("✓ test_calculate_mean_interval_basic passed")
+
+
+def test_extract_melody_pitches_from_midi():
+    """Test MIDI pitch extraction uses note_on order."""
+    pitches = [60, 62, 67]
+    durations = [1.0, 1.0, 1.0]
+    midi_bytes = create_melody_midi(pitches, durations, 120, (4, 4))
+    
+    extracted = extract_melody_pitches_from_midi(midi_bytes)
+    assert extracted == pitches, f"Expected extracted {pitches}, got {extracted}"
+    
+    print("✓ test_extract_melody_pitches_from_midi passed")
+
+
 def test_generate_melody_midi_returns_enhanced_pitch_stats():
     """Test that generate_melody_midi returns enhanced pitch statistics."""
     spec = choose_harmony(100, {'bars': 1, 'min_bpm': 100, 'max_bpm': 100})
@@ -369,6 +397,8 @@ if __name__ == "__main__":
     test_compute_pitch_stats_empty_notes()
     test_compute_pitch_stats_all_rests()
     test_compute_pitch_stats_single_note()
+    test_calculate_mean_interval_basic()
+    test_extract_melody_pitches_from_midi()
     test_generate_melody_midi_returns_enhanced_pitch_stats()
     
     print("\n" + "=" * 60)

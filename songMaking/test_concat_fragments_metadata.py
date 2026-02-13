@@ -68,6 +68,8 @@ def test_fragment_metadata_includes_note_count():
 
             fragment = metadata["fragments"][0]
             assert fragment["note_count"] == 2, f"Expected note_count 2, got {fragment['note_count']}"
+            assert abs(fragment["mean_interval"] - 2.0) < 0.01, \
+                f"Expected mean_interval 2.0, got {fragment['mean_interval']}"
 
         print("✓ test_fragment_metadata_includes_note_count passed")
     finally:

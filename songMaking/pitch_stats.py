@@ -3,7 +3,10 @@ Pitch statistics utilities for analyzing and constraining melodies.
 Calculates mean pitch and checks against target/tolerance constraints.
 """
 from typing import List, Optional, Dict, Any
+import io
 import math
+
+import mido
 
 
 def calculate_mean_pitch(midi_notes: List[int]) -> Optional[float]:
@@ -22,6 +25,39 @@ def calculate_mean_pitch(midi_notes: List[int]) -> Optional[float]:
         return None
     
     return sum(sounding_notes) / len(sounding_notes)
+
+
+def extract_melody_pitches_from_midi(midi_bytes: bytes) -> List[int]:
+    """
+    Extract melody pitch sequence from MIDI bytes.
+    
+    Uses note_on (velocity > 0) events ordered by occurrence.
+    If multiple note_on events share the same tick, keep only the highest pitch.
+    """
+    mid = mido.MidiFile(file=io.BytesIO(midi_bytes))
+    pitches_by_tick: Dict[int, int] = {}
+    absolute_tick = 0
+    
+    for msg in mido.merge_tracks(mid.tracks):
+        absolute_tick += msg.time
+        if msg.type == "note_on" and msg.velocity > 0:
+            existing = pitches_by_tick.get(absolute_tick)
+            if existing is None or msg.note > existing:
+                pitches_by_tick[absolute_tick] = msg.note
+    
+    return [pitches_by_tick[tick] for tick in sorted(pitches_by_tick)]
+
+
+def calculate_mean_interval(pitches: List[int]) -> float:
+    """
+    Calculate mean absolute interval between adjacent pitches.
+    Returns 0.0 when fewer than two pitches are provided.
+    """
+    if len(pitches) < 2:
+        return 0.0
+    
+    intervals = [abs(pitches[i] - pitches[i - 1]) for i in range(1, len(pitches))]
+    return sum(intervals) / len(intervals)
 
 
 def check_pitch_constraint(

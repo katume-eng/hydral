@@ -10,6 +10,7 @@ from typing import List, Tuple, Dict, Optional
 import pretty_midi
 
 from songMaking.harmony import choose_harmony, HarmonySpec
+from songMaking.pitch_stats import extract_melody_pitches_from_midi, calculate_mean_interval
 from songMaking.cli import generate_melody_midi
 
 
@@ -189,6 +190,7 @@ def export_concatenated_fragments(
         fragment_seed = seed + i
         best_fragment = None
         best_stats = None
+        best_mean_interval = 0.0
         
         # Try to generate a fragment that meets constraints
         for attempt in range(max_attempts):
@@ -212,6 +214,8 @@ def export_concatenated_fragments(
             
             # Convert to PrettyMIDI for analysis
             pm = pretty_midi.PrettyMIDI(io.BytesIO(midi_bytes))
+            melody_pitches = extract_melody_pitches_from_midi(midi_bytes)
+            mean_interval = calculate_mean_interval(melody_pitches)
             
             # Analyze pitch stats
             all_notes = []
@@ -224,11 +228,13 @@ def export_concatenated_fragments(
             if meets_constraints(stats, config):
                 best_fragment = pm
                 best_stats = stats
+                best_mean_interval = mean_interval
                 break
             else:
                 # Keep trying, but remember the last attempt
                 best_fragment = pm
                 best_stats = stats
+                best_mean_interval = mean_interval
         
         # Use the best (or last) fragment
         fragments_midi.append(best_fragment)
@@ -256,6 +262,7 @@ def export_concatenated_fragments(
             "mean_pitch": float(mean_pitch),
             "min_pitch": int(min_pitch),
             "max_pitch": int(max_pitch),
+            "mean_interval": round(best_mean_interval, 4),
             "seed": fragment_seed,
             "harmony": {
                 "tonic": harmony_spec.tonic_note,
