@@ -111,7 +111,7 @@ def main() -> None:
         sys.exit(1)
 
     duration_ms = max(0, int(args.duration_sec * 1000))
-    if duration_ms <= 0:
+    if duration_ms == 0:
         print("Error: duration_sec must be positive", file=sys.stderr)
         sys.exit(1)
 
