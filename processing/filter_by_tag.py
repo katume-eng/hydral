@@ -218,14 +218,15 @@ def main() -> None:
 
         if args.dry_run:
             log_info(f"[DRY RUN] Would copy {wav_path} -> {destination}")
-        else:
-            try:
-                shutil.copy2(wav_path, destination)
-                log_info(f"Copied {wav_path} -> {destination}")
-            except OSError as exc:
-                log_warn(f"Copy failed: {wav_path} -> {destination} ({exc})")
-                skip_reasons["copy_failed"] = skip_reasons.get("copy_failed", 0) + 1
-                continue
+            continue
+
+        try:
+            shutil.copy2(wav_path, destination)
+            log_info(f"Copied {wav_path} -> {destination}")
+        except OSError as exc:
+            log_warn(f"Copy failed: {wav_path} -> {destination} ({exc})")
+            skip_reasons["copy_failed"] = skip_reasons.get("copy_failed", 0) + 1
+            continue
 
         copy_count += 1
         manifest_items.append(
@@ -237,7 +238,8 @@ def main() -> None:
             }
         )
 
-    write_manifest(out_dir, tag=tag, items=manifest_items)
+    if not args.dry_run:
+        write_manifest(out_dir, tag=tag, items=manifest_items)
 
     skipped_total = sum(skip_reasons.values())
     log_info(f"Scanned JSON: {total_json}")
