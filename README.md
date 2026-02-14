@@ -83,6 +83,12 @@ python -m songMaking.player.play_midi songMaking/output/melody_001.mid
 python -m songMaking.player.play_midi song.mid --bpm-scale 0.5  # 半速
 ```
 
+### 低域ループ生成
+低周波抽出済みのWAV素材から短いループを生成します：
+```bash
+python -m songMaking.lowfrec_track --input_dir data/processed/band_split/v1/<input_stem>
+```
+
 ## 生成メタデータ仕様（JSON）
 
 ### ファイル名規則
