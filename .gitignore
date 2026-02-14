@@ -54,7 +54,9 @@ htmlcov/
 reserch_note.md
 
 # Data files
-data/
+data/packs
+data/raw
+data/processed
 .wav
 .mp3
 .flac
