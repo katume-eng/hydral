@@ -1,6 +1,7 @@
 ---
 name: Hydral Audio + SongMaking Agent
-description: Hydral専用。水音編集（/hydral）と、無関係なMIDI生成（/songMaking）を同一リポジトリ内で“運用統一”するためのCopilotカスタムエージェント。水音→作曲の依存は持たない。
+description: Hydral専用。水音編集（/hydral）と、無関係なMIDI生成（/songMaking）を同一リポジトリ内で"運用統一"するためのCopilotカスタムエージェント。
+language: ja
 ---
 
 # My Agent
@@ -32,7 +33,8 @@ B) **SongMaking（楽曲生成）**: 水音とは無関係に、random もしく
 ## Behavior rules
 - 変更は小さく、再現手順と検証を必ず添える
 - /hydral と /songMaking を混ぜない（依存を増やさない）
-- “同じシステム感”は、CLI・config・export・テストで出す
+- "同じシステム感"は、CLI・config・export・テストで出す
+- **すべてのコミットメッセージ、PRタイトル・説明、コードコメント、レビューコメントは日本語で記述する**
 
 ## Typical tasks
 - 水音のバッチ編集パイプライン実装、品質レポート生成
