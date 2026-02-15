@@ -23,7 +23,7 @@ import signal
 import sys
 import tempfile
 import traceback
-from concurrent.futures import ProcessPoolExecutor, ThreadPoolExecutor, as_completed
+from concurrent.futures import ProcessPoolExecutor, as_completed
 from dataclasses import dataclass
 from datetime import datetime, timezone
 from pathlib import Path
@@ -34,9 +34,7 @@ import numpy as np
 # 既存の Hydral 解析パイプラインを使用
 try:
     # スクリプトの親ディレクトリ（リポジトリルート）を sys.path に追加
-    import sys
-    from pathlib import Path as _Path
-    _repo_root = _Path(__file__).parent.parent
+    _repo_root = Path(__file__).parent.parent
     if str(_repo_root) not in sys.path:
         sys.path.insert(0, str(_repo_root))
     

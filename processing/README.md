@@ -27,7 +27,7 @@ python processing/analyze_folder_wavs.py --root data/raw
 # dry-run モードで解析対象を確認
 python processing/analyze_folder_wavs.py --root data/raw --dry-run
 
-# 並列処理（4スレッド）
+# 並列処理（4プロセス）
 python processing/analyze_folder_wavs.py --root data/raw --jobs 4
 
 # 既存の JSON を上書きして再解析
