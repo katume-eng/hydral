@@ -67,6 +67,7 @@ expression/
 
 # Song generation outputs
 songMaking/output/
+generated/
 *.mid
 *.midi
 

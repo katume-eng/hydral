@@ -49,6 +49,15 @@ python -m songMaking.cli --method markov --seed 999 --ngram-order 2
 
 # テンポ範囲を指定
 python -m songMaking.cli --method random --seed 42 --min-bpm 100 --max-bpm 160
+
+# バッチ生成（デフォルト10件）
+python -m songMaking.cli --method random --seed 42 --batch
+
+# バッチ件数とIDを指定
+python -m songMaking.cli --method random --seed 42 --batch --batch-count 5 --batch-id 2026-02-16-A
+
+# WAVレンダリングを有効化（SoundFont必須）
+python -m songMaking.cli --method random --seed 42 --batch --render-wav --soundfont /path/to/soundfont.sf2
 ```
 
 ### 出力ファイル
@@ -61,6 +70,8 @@ python -m songMaking.cli --method random --seed 42 --min-bpm 100 --max-bpm 160
 melody_{method}_seed{seed}_{timestamp}.mid
 melody_{method}_seed{seed}_{timestamp}.json
 ```
+
+バッチ生成の場合は、`generated/batch_{batch_id}/`に出力されます。
 
 ### 再現性
 同じシードとパラメータを与えれば、生成は**完全に決定論的**です：
@@ -105,6 +116,7 @@ JSONメタデータファイルは`{basename}.json`と命名され、対応す�
 | `method` | string | 生成方式 | `"random"`, `"scored"`, `"markov"` |
 | `seed` | integer | 乱数シード（再現性） | `42` |
 | `timestamp` | string | 生成時刻 (YYYYMMDD_HHMMSS) | `"20260211_143052"` |
+| `batch_id` | string \| null | バッチID（バッチ生成時のみ） | `"2026-02-16-A"` |
 | `harmony` | object | 調性・拍子・テンポ等のハーモニー設定 | (下記参照) |
 | `structure` | object | 構造制約（リピート、リズムプロファイル等） | (下記参照) |
 | `generation_config` | object | 生成パラメータ（rest_probability等） | |
