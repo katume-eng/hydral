@@ -90,7 +90,19 @@ def generate_melody_midi(harmony_spec, method: str, seed: int, config: dict, str
 
 
 def resolve_batch_id(output_root: Path, requested_id: str | None) -> str:
-    """バッチIDを確定する。"""
+    """バッチIDを確定する。
+
+    Args:
+        output_root: バッチ出力のルートディレクトリ。
+        requested_id: 指定済みのバッチID。未指定なら日付+連番で自動生成する。
+
+    Returns:
+        確定したバッチID。
+
+    Raises:
+        FileExistsError: 指定IDの出力先が既に存在する場合。
+        RuntimeError: 自動生成候補が上限に達した場合。
+    """
     if requested_id:
         candidate_dir = output_root / f"batch_{requested_id}"
         if candidate_dir.exists():
@@ -109,7 +121,16 @@ def resolve_batch_id(output_root: Path, requested_id: str | None) -> str:
 
 
 def render_midi_to_wav(midi_path: Path, wav_path: Path, soundfont_path: str | None) -> bool:
-    """MIDIからWAVをレンダリングする。"""
+    """MIDIからWAVをレンダリングする。
+
+    Args:
+        midi_path: 入力MIDIファイルのパス。
+        wav_path: 出力WAVファイルのパス。
+        soundfont_path: SoundFont(.sf2)のパス。
+
+    Returns:
+        レンダリングに成功した場合はTrue、失敗時はFalse。
+    """
     if not soundfont_path:
         print("WAVレンダリングには--soundfontが必要なためスキップします。")
         return False
@@ -150,7 +171,23 @@ def generate_and_save(
     render_wav: bool = False,
     soundfont_path: str | None = None
 ):
-    """指定パラメータでメロディを生成して保存する。"""
+    """指定パラメータでメロディを生成して保存する。
+
+    Args:
+        args: CLI引数（method, mean_pitch_target, max_attempts等を参照）。
+        seed: 生成に使用するseed。
+        harmony_config: ハーモニー生成の設定。
+        generation_config: 生成アルゴリズムの設定。
+        structure_spec: 構造制約（未使用の場合はNone）。
+        output_path: 出力ディレクトリ。
+        batch_id: バッチID（バッチ生成時のみ）。
+        batch_index: バッチ内の連番。
+        render_wav: WAVレンダリングの有効フラグ。
+        soundfont_path: SoundFont(.sf2)のパス。
+
+    Returns:
+        (midi_path, json_path) のタプル。
+    """
     print(f"Generating harmony specification with seed {seed}...")
     harmony_spec = choose_harmony(seed, harmony_config)
 
