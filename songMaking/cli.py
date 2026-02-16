@@ -160,11 +160,11 @@ def render_midi_to_wav(midi_path: Path, wav_path: Path, soundfont_path: str | No
 
 
 def generate_and_save(
-    args,
+    args: argparse.Namespace,
     seed: int,
     harmony_config: dict,
     generation_config: dict,
-    structure_spec,
+    structure_spec: MelodyStructureSpec | None,
     output_path: Path,
     batch_id: str | None = None,
     batch_index: int | None = None,
