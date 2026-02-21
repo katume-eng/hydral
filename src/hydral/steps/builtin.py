@@ -257,13 +257,60 @@ class GrainStep(BaseStep):
         return ctx
 
 
-# ── Registration ───────────────────────────────────────────────────────────
+# ── EnsureMetadataStep ─────────────────────────────────────────────────────
+
+
+class EnsureMetadataStep(BaseStep):
+    """Ensure a v1 sidecar metadata JSON exists alongside the input WAV.
+
+    Reads ``ctx.audio_path``, delegates to
+    :func:`~hydral.processing.unify_metadata.ensure_metadata`, and stores
+    the sidecar path in ``ctx.artifacts.metadata_json``.
+
+    This step is non-destructive: it does *not* modify ``ctx.audio_path``.
+    It is intended to run *before* other transform steps so that all
+    downstream processing has access to validated metadata.
+    """
+
+    @property
+    def step_name(self) -> str:
+        return "ensure_metadata"
+
+    def outputs(self, ctx: PipelineContext) -> List[Path]:
+        return [ctx.audio_path.with_suffix(".json")]
+
+    def output_exists(self, ctx: PipelineContext) -> bool:
+        from hydral.processing.unify_metadata import _sidecar_path, is_v1
+        sidecar = _sidecar_path(ctx.audio_path)
+        if not sidecar.exists():
+            return False
+        try:
+            with open(sidecar, encoding="utf-8") as fh:
+                data = json.load(fh)
+            return is_v1(data)
+        except (json.JSONDecodeError, OSError):
+            return False
+
+    def run(self, ctx: PipelineContext) -> PipelineContext:
+        from hydral.processing.unify_metadata import _sidecar_path, ensure_metadata
+        sidecar_existed = _sidecar_path(ctx.audio_path).exists()
+        json_path, changed = ensure_metadata(ctx.audio_path)
+        if changed:
+            action = "migrated" if sidecar_existed else "created"
+        else:
+            action = "already v1"
+        print(f"  ✓ Metadata sidecar {action}: {json_path}")
+        ctx.artifacts.metadata_json = json_path
+        return ctx
+
+
 
 def _register_builtins() -> None:
     StepRegistry.register("analyze", AnalyzeStep)
     StepRegistry.register("normalize", NormalizeStep)
     StepRegistry.register("band_split", BandSplitStep)
     StepRegistry.register("grain", GrainStep)
+    StepRegistry.register("ensure_metadata", EnsureMetadataStep)
 
 
 _register_builtins()

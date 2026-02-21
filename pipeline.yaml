@@ -8,6 +8,8 @@ pipeline:
     - "**/*.flac"
     - "**/*.m4a"
   steps:
+    - name: ensure_metadata
+      enabled: true
     - name: analyze
       enabled: true
       params:

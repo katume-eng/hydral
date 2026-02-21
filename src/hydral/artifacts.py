@@ -20,6 +20,7 @@ class Artifacts:
     """
 
     features_json: Optional[Path] = None
+    metadata_json: Optional[Path] = None
     normalized_wav: Optional[Path] = None
     grain_wav: Optional[Path] = None
     band_manifest_json: Optional[Path] = None

@@ -20,6 +20,7 @@ from __future__ import annotations
 from hydral.steps.builtin import (  # noqa: F401
     AnalyzeStep,
     BandSplitStep,
+    EnsureMetadataStep,
     GrainStep,
     NormalizeStep,
 )
@@ -31,6 +32,7 @@ from hydral.steps.registry import StepRegistry  # noqa: F401
 __all__ = [
     "AnalyzeStep",
     "BandSplitStep",
+    "EnsureMetadataStep",
     "GrainStep",
     "NormalizeStep",
     "BaseStep",
