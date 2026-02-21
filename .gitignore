@@ -54,9 +54,15 @@ htmlcov/
 reserch_note.md
 
 # Data files
-data/packs
 data/raw
 data/processed
+data/packs/**
+
+# Keep pack templates tracked
+!data/packs/
+!data/packs/templates/
+!data/packs/templates/**
+
 .wav
 .mp3
 .flac
