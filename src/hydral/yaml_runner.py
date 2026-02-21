@@ -19,6 +19,10 @@ from typing import Any, Dict, List, Optional
 
 import yaml
 
+# Ensure built-in steps are registered in StepRegistry before any build_step call.
+import hydral.steps.builtin  # noqa: F401 – side-effect: registers built-ins
+from hydral.steps.registry import StepRegistry
+
 
 # ── Config dataclasses ─────────────────────────────────────────────────────
 
@@ -73,21 +77,62 @@ class RunReport:
 # ── Config loading ─────────────────────────────────────────────────────────
 
 def load_config(config_path: Path) -> PipelineConfig:
-    """Load and parse a pipeline YAML config file."""
+    """Load and parse a pipeline YAML config file.
+
+    Raises
+    ------
+    FileNotFoundError
+        If *config_path* does not exist.
+    ValueError
+        If the YAML is structurally invalid or contains unknown step names.
+    """
+    if not config_path.exists():
+        raise FileNotFoundError(f"Config file not found: {config_path}")
+
     with open(config_path, encoding="utf-8") as fh:
         raw = yaml.safe_load(fh)
 
-    pipeline_raw = raw.get("pipeline", {})
-    steps_raw = pipeline_raw.get("steps", [])
-
-    steps = [
-        StepConfig(
-            name=s["name"],
-            enabled=s.get("enabled", True),
-            params=s.get("params", {}),
+    if not isinstance(raw, dict) or "pipeline" not in raw:
+        raise ValueError(
+            f"Config {config_path} must have a top-level 'pipeline' key."
         )
-        for s in steps_raw
-    ]
+
+    pipeline_raw = raw.get("pipeline", {})
+    if not isinstance(pipeline_raw, dict):
+        raise ValueError(
+            f"'pipeline' in {config_path} must be a mapping, got {type(pipeline_raw).__name__}."
+        )
+
+    steps_raw = pipeline_raw.get("steps", [])
+    if not isinstance(steps_raw, list):
+        raise ValueError(
+            f"'pipeline.steps' in {config_path} must be a list."
+        )
+
+    steps: List[StepConfig] = []
+    for i, s in enumerate(steps_raw):
+        if not isinstance(s, dict):
+            raise ValueError(
+                f"Step #{i} in {config_path} must be a mapping, got {type(s).__name__}."
+            )
+        if "name" not in s:
+            raise ValueError(f"Step #{i} in {config_path} is missing required key 'name'.")
+        step_name = s["name"]
+        # Validate name against registered steps (only enabled steps need to be known).
+        enabled = s.get("enabled", True)
+        if enabled and step_name not in StepRegistry.names():
+            known = ", ".join(StepRegistry.names()) or "(none registered)"
+            raise ValueError(
+                f"Unknown step {step_name!r} in {config_path}. "
+                f"Known steps: {known}"
+            )
+        steps.append(
+            StepConfig(
+                name=step_name,
+                enabled=enabled,
+                params=s.get("params", {}),
+            )
+        )
 
     return PipelineConfig(
         name=pipeline_raw.get("name", "hydral_default"),
@@ -117,38 +162,36 @@ def collect_inputs(input_path: Path, globs: List[str]) -> List[Path]:
 # ── Step building ──────────────────────────────────────────────────────────
 
 def build_step(step_cfg: StepConfig):
-    """Instantiate a step object from a :class:`StepConfig`."""
-    from hydral.steps import AnalyzeStep, BandSplitStep, GrainStep, NormalizeStep
+    """Instantiate a step object from a :class:`StepConfig` via the registry.
 
-    name = step_cfg.name
-    params = step_cfg.params
-
-    if name == "analyze":
-        return AnalyzeStep(
-            hop_length=params.get("hop_length", 512),
-            smoothing_window=params.get("smoothing_window", 5),
-            sr=params.get("sr"),
-        )
-    if name == "normalize":
-        return NormalizeStep(
-            target_db=params.get("target_db", -1.0),
-        )
-    if name == "band_split":
-        return BandSplitStep(
-            filter_order=params.get("filter_order", 5),
-        )
-    if name == "grain":
-        return GrainStep(
-            grain_sec=params.get("grain_sec", 0.5),
-            seed=params.get("seed", 42),
-        )
-    raise ValueError(f"Unknown step: {name!r}")
+    Raises
+    ------
+    ValueError
+        If the step name is not registered.
+    """
+    return StepRegistry.build(step_cfg.name, step_cfg.params)
 
 
 # ── Report helpers ─────────────────────────────────────────────────────────
 
 def _capture_outputs(step_name: str, ctx, step_trace: StepTrace) -> None:
-    """Populate step_trace.outputs from ctx.extra after a step runs."""
+    """Populate step_trace.outputs from ctx.artifacts (and ctx.extra fallback)."""
+    from hydral.artifacts import Artifacts
+
+    artifact_map = {
+        "analyze": "features_json",
+        "normalize": "normalized_wav",
+        "grain": "grain_wav",
+        "band_split": "band_dir",
+    }
+    attr = artifact_map.get(step_name)
+    if attr:
+        val = getattr(ctx.artifacts, attr, None)
+        if val is not None:
+            step_trace.outputs = [str(val)]
+            return
+
+    # Fallback: legacy ctx.extra string keys
     key_map = {
         "analyze": "features_path",
         "normalize": "normalized_path",
@@ -162,6 +205,25 @@ def _capture_outputs(step_name: str, ctx, step_trace: StepTrace) -> None:
             step_trace.outputs = [str(o.get("path", "")) for o in val["outputs"]]
         else:
             step_trace.outputs = [str(val)]
+
+
+def _write_cache_manifest(
+    run_id: str,
+    audio_file: Path,
+    output_root: Path,
+    step_fingerprints: Dict[str, Any],
+) -> None:
+    """Write a per-file fingerprint manifest under the run-isolated cache dir.
+
+    Layout::
+
+        <output_root>/runs/<run_id>/<stem>/.cache/manifest.json
+    """
+    cache_dir = output_root / "runs" / run_id / audio_file.stem / ".cache"
+    cache_dir.mkdir(parents=True, exist_ok=True)
+    manifest_path = cache_dir / "manifest.json"
+    with open(manifest_path, "w", encoding="utf-8") as fh:
+        json.dump(step_fingerprints, fh, indent=2)
 
 
 def _report_to_dict(report: RunReport) -> dict:
@@ -247,6 +309,7 @@ def run_pipeline(config_path: Path) -> None:
 
         file_trace = FileTrace(input=str(audio_file), status="success")
         file_failed = False
+        step_fingerprints: Dict[str, Any] = {}
 
         for step_cfg in config.steps:
             if not step_cfg.enabled:
@@ -265,6 +328,10 @@ def run_pipeline(config_path: Path) -> None:
                 )
                 file_failed = True
                 continue
+
+            # Collect fingerprint before potentially mutating ctx.audio_path
+            if hasattr(step, "fingerprint"):
+                step_fingerprints[step_cfg.name] = step.fingerprint(ctx)
 
             # Skip if the step's output already exists
             if hasattr(step, "output_exists") and step.output_exists(ctx):
@@ -298,6 +365,10 @@ def run_pipeline(config_path: Path) -> None:
                     )
                 )
                 file_failed = True
+
+        # Write run-isolated fingerprint cache for this file
+        if step_fingerprints:
+            _write_cache_manifest(run_id, audio_file, output_root, step_fingerprints)
 
         if file_failed:
             file_trace.status = "failed"

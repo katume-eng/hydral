@@ -1,5 +1,12 @@
 """Built-in pipeline steps for hydral.
 
+.. deprecated::
+    This module is superseded by the :mod:`hydral.steps` *package*
+    (``src/hydral/steps/``).  Python gives the package priority over this
+    file in all import statements, so this file is effectively unreachable.
+    It is kept only as a historical reference; do not edit it.  Refer to
+    ``src/hydral/steps/builtin.py`` for the current implementations.
+
 Each step receives a :class:`~hydral.pipeline.PipelineContext`, performs one
 transformation, writes its output under ``ctx.output_dir``, and returns the
 (potentially updated) context so the next step can consume it.

@@ -15,15 +15,32 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Protocol, runtime_checkable
 
+from hydral.artifacts import Artifacts
+
 
 @dataclass
 class PipelineContext:
-    """Carries input/output paths and shared state through a pipeline."""
+    """Carries input/output paths and shared state through a pipeline.
+
+    ``input_path`` is the original source file and never changes.
+    ``audio_path`` starts equal to ``input_path`` and is updated by each
+    transform step to point at its primary output, enabling step-to-step
+    piping (e.g. normalize → grain uses the normalized audio as input).
+    ``artifacts`` holds typed output paths filled in by built-in steps.
+    ``extra`` is a free-form dict kept for ad-hoc debugging payloads.
+    """
 
     input_path: Path
     output_dir: Path
     sample_rate: Optional[int] = None
+    artifacts: Artifacts = field(default_factory=Artifacts)
     extra: Dict[str, Any] = field(default_factory=dict)
+    # audio_path is derived from input_path; excluded from __init__ so that
+    # existing call-sites (PipelineContext(input_path=…, output_dir=…)) still work.
+    audio_path: Path = field(init=False)
+
+    def __post_init__(self) -> None:
+        self.audio_path = self.input_path
 
 
 @runtime_checkable

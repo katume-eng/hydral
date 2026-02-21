@@ -369,5 +369,299 @@ def test_output_exists_methods(tmp_path):
     assert analyze.output_exists(ctx) is True
 
 
+# ── New: PipelineContext audio_path and artifacts ────────────────────────────
+
+def test_pipeline_context_audio_path_defaults_to_input(tmp_path):
+    """audio_path must start equal to input_path."""
+    wav = tmp_path / "in.wav"
+    ctx = PipelineContext(input_path=wav, output_dir=tmp_path / "out")
+    assert ctx.audio_path == ctx.input_path
+
+
+def test_pipeline_context_artifacts_defaults_empty(tmp_path):
+    """artifacts must be an Artifacts instance with all fields None."""
+    from hydral.artifacts import Artifacts
+
+    ctx = PipelineContext(input_path=tmp_path / "in.wav", output_dir=tmp_path / "out")
+    assert isinstance(ctx.artifacts, Artifacts)
+    assert ctx.artifacts.features_json is None
+    assert ctx.artifacts.normalized_wav is None
+    assert ctx.artifacts.grain_wav is None
+    assert ctx.artifacts.band_manifest_json is None
+    assert ctx.artifacts.band_dir is None
+
+
+def test_normalize_step_updates_audio_path(tmp_path):
+    """NormalizeStep must update ctx.audio_path to the normalised file."""
+    wav = tmp_path / "tone.wav"
+    _make_wav(wav)
+    out_dir = tmp_path / "out"
+
+    from hydral.steps import NormalizeStep
+
+    ctx = PipelineContext(input_path=wav, output_dir=out_dir)
+    assert ctx.audio_path == wav
+
+    NormalizeStep(target_db=-1.0).run(ctx)
+
+    expected = out_dir / "tone_normalized.wav"
+    assert ctx.audio_path == expected, (
+        f"audio_path should be updated to {expected}, got {ctx.audio_path}"
+    )
+
+
+def test_normalize_step_fills_artifacts(tmp_path):
+    """NormalizeStep must fill ctx.artifacts.normalized_wav."""
+    wav = tmp_path / "tone.wav"
+    _make_wav(wav)
+    out_dir = tmp_path / "out"
+
+    from hydral.steps import NormalizeStep
+
+    ctx = PipelineContext(input_path=wav, output_dir=out_dir)
+    NormalizeStep().run(ctx)
+
+    assert ctx.artifacts.normalized_wav == out_dir / "tone_normalized.wav"
+
+
+def test_analyze_step_fills_artifacts(tmp_path):
+    """AnalyzeStep must fill ctx.artifacts.features_json."""
+    wav = tmp_path / "tone.wav"
+    _make_wav(wav)
+    out_dir = tmp_path / "out"
+
+    from hydral.steps import AnalyzeStep
+
+    ctx = PipelineContext(input_path=wav, output_dir=out_dir)
+    AnalyzeStep().run(ctx)
+
+    assert ctx.artifacts.features_json == out_dir / "tone_features.json"
+
+
+def test_analyze_step_does_not_update_audio_path(tmp_path):
+    """AnalyzeStep must NOT change ctx.audio_path (analysis is non-destructive)."""
+    wav = tmp_path / "tone.wav"
+    _make_wav(wav)
+    out_dir = tmp_path / "out"
+
+    from hydral.steps import AnalyzeStep
+
+    ctx = PipelineContext(input_path=wav, output_dir=out_dir)
+    original_audio_path = ctx.audio_path
+    AnalyzeStep().run(ctx)
+    assert ctx.audio_path == original_audio_path
+
+
+def test_grain_step_fills_artifacts(tmp_path):
+    """GrainStep must fill ctx.artifacts.grain_wav."""
+    wav = tmp_path / "tone.wav"
+    _make_wav(wav, duration_sec=2.0)
+    out_dir = tmp_path / "out"
+
+    from hydral.steps import GrainStep
+
+    ctx = PipelineContext(input_path=wav, output_dir=out_dir)
+    GrainStep(grain_sec=0.5, seed=42).run(ctx)
+
+    assert ctx.artifacts.grain_wav == out_dir / "tone_grain.wav"
+
+
+def test_normalize_grain_piping(tmp_path):
+    """normalize → grain chain: grain must read from normalised audio.
+
+    The piping contract is: after NormalizeStep runs, ctx.audio_path points
+    at the normalised file so the next step reads from it.  We verify this
+    without executing GrainStep.run() (which requires ffprobe via pydub when
+    loading a 32-bit float WAV written by NormalizeStep).
+    """
+    wav = tmp_path / "tone.wav"
+    _make_wav(wav, duration_sec=2.0)
+    out_dir = tmp_path / "out"
+
+    from hydral.steps import GrainStep, NormalizeStep
+
+    ctx = PipelineContext(input_path=wav, output_dir=out_dir)
+    NormalizeStep(target_db=-1.0).run(ctx)
+
+    # audio_path now points at the normalised file
+    normalized_path = ctx.audio_path
+    assert normalized_path.exists()
+    assert normalized_path.name == "tone_normalized.wav"
+
+    # GrainStep.outputs() must report a path based on input_path.stem
+    grain = GrainStep(grain_sec=0.5, seed=42)
+    expected_grain_out = out_dir / "tone_grain.wav"
+    assert grain.outputs(ctx) == [expected_grain_out]
+
+    # GrainStep.output_exists() checks input_path.stem-based path (not yet created)
+    assert not grain.output_exists(ctx)
+
+
+# ── New: StepRegistry ────────────────────────────────────────────────────────
+
+def test_step_registry_known_names():
+    """Built-in steps must be registered in StepRegistry."""
+    from hydral.steps.registry import StepRegistry
+
+    assert "analyze" in StepRegistry.names()
+    assert "normalize" in StepRegistry.names()
+    assert "band_split" in StepRegistry.names()
+    assert "grain" in StepRegistry.names()
+
+
+def test_step_registry_build_returns_correct_types():
+    from hydral.steps import AnalyzeStep, BandSplitStep, GrainStep, NormalizeStep
+    from hydral.steps.registry import StepRegistry
+
+    assert isinstance(StepRegistry.build("analyze"), AnalyzeStep)
+    assert isinstance(StepRegistry.build("normalize"), NormalizeStep)
+    assert isinstance(StepRegistry.build("band_split"), BandSplitStep)
+    assert isinstance(StepRegistry.build("grain"), GrainStep)
+
+
+def test_step_registry_build_unknown_raises():
+    from hydral.steps.registry import StepRegistry
+
+    with pytest.raises(ValueError, match="Unknown step"):
+        StepRegistry.build("nonexistent_xyz")
+
+
+def test_step_registry_build_passes_params():
+    from hydral.steps import NormalizeStep
+    from hydral.steps.registry import StepRegistry
+
+    step = StepRegistry.build("normalize", {"target_db": -6.0})
+    assert isinstance(step, NormalizeStep)
+    assert step.target_db == -6.0
+
+
+# ── New: BaseStep fingerprint ────────────────────────────────────────────────
+
+def test_base_step_fingerprint_is_json_serialisable(tmp_path):
+    """fingerprint() must return a JSON-serialisable dict."""
+    wav = tmp_path / "tone.wav"
+    _make_wav(wav)
+    ctx = PipelineContext(input_path=wav, output_dir=tmp_path / "out")
+
+    from hydral.steps import NormalizeStep
+
+    step = NormalizeStep(target_db=-3.0)
+    fp = step.fingerprint(ctx)
+
+    assert isinstance(fp, dict)
+    # Must serialise without error
+    dumped = json.dumps(fp)
+    loaded = json.loads(dumped)
+    assert loaded["step"] == "normalize"
+    assert loaded["params"]["target_db"] == -3.0
+
+
+def test_base_step_fingerprint_includes_params(tmp_path):
+    """Different params must produce different fingerprints."""
+    wav = tmp_path / "tone.wav"
+    _make_wav(wav)
+    ctx = PipelineContext(input_path=wav, output_dir=tmp_path / "out")
+
+    from hydral.steps import NormalizeStep
+
+    fp1 = NormalizeStep(target_db=-1.0).fingerprint(ctx)
+    fp2 = NormalizeStep(target_db=-6.0).fingerprint(ctx)
+    assert fp1["params"]["target_db"] != fp2["params"]["target_db"]
+
+
+# ── New: load_config validation ───────────────────────────────────────────────
+
+def test_load_config_missing_file(tmp_path):
+    """load_config must raise FileNotFoundError for missing files."""
+    from hydral.yaml_runner import load_config
+
+    with pytest.raises(FileNotFoundError):
+        load_config(tmp_path / "missing.yaml")
+
+
+def test_load_config_missing_pipeline_key(tmp_path):
+    """load_config must raise ValueError if 'pipeline' key is absent."""
+    from hydral.yaml_runner import load_config
+
+    cfg = tmp_path / "bad.yaml"
+    cfg.write_text("name: test\n", encoding="utf-8")
+    with pytest.raises(ValueError, match="top-level 'pipeline' key"):
+        load_config(cfg)
+
+
+def test_load_config_unknown_step_name_raises(tmp_path):
+    """load_config must raise ValueError for unknown step names."""
+    from hydral.yaml_runner import load_config
+
+    cfg = tmp_path / "bad.yaml"
+    cfg.write_text(
+        "pipeline:\n"
+        "  name: test\n"
+        "  steps:\n"
+        "    - name: nonexistent_xyz\n"
+        "      enabled: true\n",
+        encoding="utf-8",
+    )
+    with pytest.raises(ValueError, match="Unknown step"):
+        load_config(cfg)
+
+
+def test_load_config_disabled_unknown_step_is_allowed(tmp_path):
+    """Disabled steps with unknown names should not raise (they won't run)."""
+    from hydral.yaml_runner import load_config
+
+    cfg = tmp_path / "ok.yaml"
+    cfg.write_text(
+        "pipeline:\n"
+        "  name: test\n"
+        "  steps:\n"
+        "    - name: nonexistent_xyz\n"
+        "      enabled: false\n",
+        encoding="utf-8",
+    )
+    result = load_config(cfg)
+    assert result.steps[0].name == "nonexistent_xyz"
+    assert result.steps[0].enabled is False
+
+
+# ── New: cache manifest written by run_pipeline ───────────────────────────────
+
+def test_run_pipeline_writes_cache_manifest(tmp_path):
+    """run_pipeline must write a .cache/manifest.json under runs/<run_id>/<stem>/."""
+    wav = tmp_path / "raw" / "tone.wav"
+    wav.parent.mkdir(parents=True)
+    _make_wav(wav)
+
+    out_root = tmp_path / "out"
+    cfg_file = tmp_path / "pipeline.yaml"
+    cfg_file.write_text(
+        f"pipeline:\n"
+        f"  name: test\n"
+        f"  input: {wav}\n"
+        f"  output: {out_root}\n"
+        f"  steps:\n"
+        f"    - name: normalize\n"
+        f"      enabled: true\n"
+        f"      params:\n"
+        f"        target_db: -1.0\n",
+        encoding="utf-8",
+    )
+
+    from hydral.yaml_runner import run_pipeline
+
+    run_pipeline(cfg_file)
+
+    # Cache manifests live under runs/<run_id>/<stem>/.cache/manifest.json
+    manifests = list(out_root.glob("runs/*/tone/.cache/manifest.json"))
+    assert len(manifests) == 1, "Expected exactly one cache manifest"
+
+    with open(manifests[0], encoding="utf-8") as fh:
+        manifest = json.load(fh)
+
+    assert "normalize" in manifest
+    assert manifest["normalize"]["step"] == "normalize"
+    assert manifest["normalize"]["params"]["target_db"] == -1.0
+
+
 if __name__ == "__main__":
     pytest.main([__file__, "-v"])
