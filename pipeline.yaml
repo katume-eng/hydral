@@ -1,0 +1,30 @@
+pipeline:
+  name: "hydral_default"
+  input: "data/raw"
+  output: "data/processed/hydral"
+  glob:
+    - "**/*.wav"
+    - "**/*.mp3"
+    - "**/*.flac"
+    - "**/*.m4a"
+  steps:
+    - name: analyze
+      enabled: true
+      params:
+        sr: 22050
+        hop_length: 512
+        smoothing_window: 5
+    - name: normalize
+      enabled: true
+      params:
+        target_db: -1.0
+    - name: band_split
+      enabled: false
+      params:
+        # Uses 5 default frequency bands (20-120, 120-300, 300-900, 900-3000, 3000-12000 Hz)
+        filter_order: 5
+    - name: grain
+      enabled: false
+      params:
+        grain_sec: 0.5
+        seed: 42

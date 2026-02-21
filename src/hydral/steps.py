@@ -28,13 +28,17 @@ from hydral.processing.transform_mics import shuffle
 class AnalyzeStep:
     """Extract audio features and save them as ``<stem>_features.json``."""
 
-    def __init__(self, hop_length: int = 512, smoothing_window: int = 5) -> None:
+    def __init__(self, hop_length: int = 512, smoothing_window: int = 5, sr: int | None = None) -> None:
         self.hop_length = hop_length
         self.smoothing_window = smoothing_window
+        self.sr = sr
+
+    def output_exists(self, ctx: PipelineContext) -> bool:
+        return (ctx.output_dir / f"{ctx.input_path.stem}_features.json").exists()
 
     def run(self, ctx: PipelineContext) -> PipelineContext:
         waveform, sr = load_audio_waveform(
-            ctx.input_path, target_sample_rate=ctx.sample_rate
+            ctx.input_path, target_sample_rate=ctx.sample_rate if ctx.sample_rate is not None else self.sr
         )
 
         rms = extract_rms_energy(waveform, hop_length=self.hop_length)
@@ -75,6 +79,9 @@ class NormalizeStep:
     def __init__(self, target_db: float = -1.0) -> None:
         self.target_db = target_db
 
+    def output_exists(self, ctx: PipelineContext) -> bool:
+        return (ctx.output_dir / f"{ctx.input_path.stem}_normalized.wav").exists()
+
     def run(self, ctx: PipelineContext) -> PipelineContext:
         audio, sr = sf.read(str(ctx.input_path), always_2d=False)
         peak = float(np.abs(audio).max())
@@ -97,6 +104,10 @@ class BandSplitStep:
     def __init__(self, filter_order: int = 5) -> None:
         self.filter_order = filter_order
 
+    def output_exists(self, ctx: PipelineContext) -> bool:
+        band_dir = ctx.output_dir / f"{ctx.input_path.stem}_bands"
+        return band_dir.is_dir() and any(band_dir.iterdir())
+
     def run(self, ctx: PipelineContext) -> PipelineContext:
         band_dir = ctx.output_dir / f"{ctx.input_path.stem}_bands"
         manifest = split_into_bands(
@@ -116,6 +127,9 @@ class GrainStep:
     def __init__(self, grain_sec: float = 0.5, seed: int = 42) -> None:
         self.grain_sec = grain_sec
         self.seed = seed
+
+    def output_exists(self, ctx: PipelineContext) -> bool:
+        return (ctx.output_dir / f"{ctx.input_path.stem}_grain.wav").exists()
 
     def run(self, ctx: PipelineContext) -> PipelineContext:
         audio = load_wav(ctx.input_path)
