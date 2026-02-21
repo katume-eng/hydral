@@ -63,10 +63,10 @@ data/packs/**
 !data/packs/templates/
 !data/packs/templates/**
 
-.wav
-.mp3
-.flac
-.m4a
+*.wav
+*.mp3
+*.flac
+*.m4a
 
 analysis/analysis_outputs/
 expression/
