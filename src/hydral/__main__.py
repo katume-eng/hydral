@@ -70,6 +70,15 @@ def _cmd_analyze(args: argparse.Namespace) -> None:
         pipeline.run(ctx)
 
 
+def _cmd_run(args: argparse.Namespace) -> None:
+    from hydral.yaml_runner import run_pipeline
+
+    config_path = args.config
+    if not config_path.exists():
+        sys.exit(f"Config file not found: {config_path}")
+    run_pipeline(config_path)
+
+
 def _cmd_process(args: argparse.Namespace) -> None:
     from hydral.pipeline import Pipeline, PipelineContext
     from hydral.steps import BandSplitStep, GrainStep, NormalizeStep
@@ -109,7 +118,17 @@ def _build_parser() -> argparse.ArgumentParser:
     )
     sub = parser.add_subparsers(dest="command", required=True)
 
-    # ── analyze ──────────────────────────────────────────────────────────────
+    # ── run ───────────────────────────────────────────────────────────────────
+    p_run = sub.add_parser("run", help="Run a YAML-configured pipeline")
+    p_run.add_argument(
+        "--config",
+        type=Path,
+        default=Path("pipeline.yaml"),
+        metavar="FILE",
+        help="Pipeline config file (default: pipeline.yaml)",
+    )
+
+    # ── analyze ───────────────────────────────────────────────────────────────
     p_an = sub.add_parser("analyze", help="Extract audio features to JSON")
     p_an.add_argument("input", type=Path, help="Input WAV/MP3/FLAC file or folder")
     p_an.add_argument(
@@ -183,7 +202,9 @@ def main() -> None:
     parser = _build_parser()
     args = parser.parse_args()
 
-    if args.command == "analyze":
+    if args.command == "run":
+        _cmd_run(args)
+    elif args.command == "analyze":
         _cmd_analyze(args)
     elif args.command == "process":
         _cmd_process(args)
