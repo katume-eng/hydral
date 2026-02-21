@@ -8,7 +8,7 @@ from analysis.audio_features.etract_energy import extract_rms_energy
 from analysis.audio_features.bands import extract_frequency_band_energies
 from analysis.audio_features.onset import extract_onset_strength
 from analysis.audio_features.smoothing import apply_moving_average
-from routes import PATH
+from src.hydral.routes import PATH
 
 
 def run_audio_analysis_pipeline(

@@ -1,6 +1,6 @@
 # presets/hydral_basic.py
 from pipelines.audio_pipeline import hydral_pipeline
-from routes import PATH
+from src.hydral.routes import PATH
 
 def run():
     hydral_pipeline(
