@@ -284,9 +284,113 @@ pip install -r requirements.txt
 export PYTHONPATH=src   # または python -m を使う場合は不要
 ```
 
-### 基本的な使い方
+### YAMLパイプライン実行（`run`）
 
-#### 音声特徴量の抽出（`analyze`）
+設定ファイル1つで全処理ステップをまとめて実行します。
+
+#### 1. `pipeline.yaml` を編集する
+
+リポジトリルートにある `pipeline.yaml` を開き、入力・出力パスとステップを設定します。
+
+```yaml
+pipeline:
+  name: "hydral_default"
+  input: "data/raw"                  # 入力ルートフォルダ（またはファイルパス）
+  output: "data/processed/hydral"    # 出力ルートフォルダ
+  glob:                              # 再帰的に検索する拡張子
+    - "**/*.wav"
+    - "**/*.mp3"
+    - "**/*.flac"
+    - "**/*.m4a"
+  steps:
+    - name: analyze          # 特徴量抽出 → JSON 出力
+      enabled: true
+      params:
+        sr: 22050            # サンプルレート（省略可）
+        hop_length: 512
+        smoothing_window: 5
+    - name: normalize        # ピーク正規化
+      enabled: true
+      params:
+        target_db: -1.0
+    - name: band_split       # 周波数帯域分割（無効例）
+      enabled: false
+      params:
+        filter_order: 5
+    - name: grain            # グレイン・シャッフル（無効例）
+      enabled: false
+      params:
+        grain_sec: 0.5
+        seed: 42
+```
+
+`enabled: false` にすることでステップをスキップできます。
+
+#### 2. パイプラインを実行する
+
+```bash
+# デフォルト（./pipeline.yaml を読む）
+python -m hydral run
+
+# 設定ファイルを明示的に指定
+python -m hydral run --config pipeline.yaml
+```
+
+#### 出力ディレクトリ構成
+
+```
+data/processed/hydral/
+├── <ファイル名（拡張子なし）>/
+│   ├── <stem>_features.json     # analyze ステップ
+│   ├── <stem>_normalized.wav    # normalize ステップ
+│   ├── <stem>_grain.wav         # grain ステップ
+│   └── <stem>_bands/            # band_split ステップ
+│       ├── band01_tonal.wav
+│       ├── band01_noise.wav
+│       ├── ...
+│       └── split_manifest.json
+└── _runs/
+    └── run_<YYYYMMDD_HHMMSS>.json   # 実行レポート（毎回生成）
+```
+
+#### 実行レポート（JSON）
+
+各実行ごとに `data/processed/hydral/_runs/run_<timestamp>.json` が作成されます。
+
+```json
+{
+  "run_id": "20260221_015101",
+  "pipeline_name": "hydral_default",
+  "started_at": "2026-02-21T01:51:01",
+  "finished_at": "2026-02-21T01:51:03",
+  "total_elapsed_sec": 2.1,
+  "files": [
+    {
+      "input": "data/raw/track.wav",
+      "status": "success",
+      "steps": [
+        { "name": "analyze",   "status": "ran",              "elapsed_sec": 0.72, "outputs": [...] },
+        { "name": "normalize", "status": "ran",              "elapsed_sec": 0.01, "outputs": [...] },
+        { "name": "band_split","status": "skipped_disabled", "elapsed_sec": 0    },
+        { "name": "grain",     "status": "skipped_exists",   "elapsed_sec": 0    }
+      ]
+    }
+  ]
+}
+```
+
+ステップの `status` は以下のいずれかです：
+
+| status | 意味 |
+|--------|------|
+| `ran` | 正常実行 |
+| `skipped_disabled` | `enabled: false` のためスキップ |
+| `skipped_exists` | 出力ファイルが既に存在するためスキップ |
+| `failed` | エラー発生（`error` フィールドに詳細） |
+
+---
+
+
 
 WAV / MP3 / FLAC ファイルを解析し、JSON ファイルを出力します。
 
