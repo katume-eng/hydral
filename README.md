@@ -349,6 +349,11 @@ data/processed/hydral/
 │       ├── band01_noise.wav
 │       ├── ...
 │       └── split_manifest.json
+├── runs/
+│   └── <run_id>/
+│       └── <stem>/
+│           └── .cache/
+│               └── manifest.json    # 再現性用フィンガープリント（各ステップのパラメータ＋入力メタ）
 └── _runs/
     └── run_<YYYYMMDD_HHMMSS>.json   # 実行レポート（毎回生成）
 ```
@@ -388,9 +393,40 @@ data/processed/hydral/
 | `skipped_exists` | 出力ファイルが既に存在するためスキップ |
 | `failed` | エラー発生（`error` フィールドに詳細） |
 
+#### 再現性マニフェスト（`.cache/manifest.json`）
+
+`data/processed/hydral/runs/<run_id>/<stem>/.cache/manifest.json` に各ステップのフィンガープリントが保存されます。フィンガープリントにはステップ名・入力ファイルのサイズとmtime・ステップパラメータが含まれ、同じ入力・同じ設定で再実行したときに以前の結果と比較できます。
+
+```json
+{
+  "normalize": {
+    "step": "normalize",
+    "input": "data/raw/track.wav",
+    "input_stat": { "size": 4410044, "mtime": 1740000000.0 },
+    "params": { "target_db": -1.0 }
+  },
+  "analyze": {
+    "step": "analyze",
+    "input": "data/raw/track.wav",
+    "input_stat": { "size": 4410044, "mtime": 1740000000.0 },
+    "params": { "hop_length": 512, "smoothing_window": 5, "sr": 22050 }
+  }
+}
+```
+
+#### 設定バリデーション
+
+`load_config` は設定ファイルの読み込み時に以下を検証します。エラーがある場合はパイプライン実行前に詳細なメッセージで失敗します。
+
+- `pipeline` キーの存在
+- `steps` がリスト形式であること
+- 有効（`enabled: true`）なステップ名が登録済みであること（未知の名前は `ValueError` + "Known steps: …" で通知）
+
+> **注意**: `enabled: false` のステップは名前が未知でもエラーにならず、無視されます。
+
 ---
 
-
+### 音声解析（`analyze`）
 
 WAV / MP3 / FLAC ファイルを解析し、JSON ファイルを出力します。
 
@@ -487,7 +523,68 @@ Pipeline([
 ]).run(ctx)
 ```
 
-カスタムステップは `run(ctx: PipelineContext) -> PipelineContext` を実装するだけで追加できます。
+#### `PipelineContext` の主要フィールド
+
+| フィールド | 説明 |
+|-----------|------|
+| `input_path` | 元の入力ファイルパス（変更されない） |
+| `audio_path` | 現在の音声入力パス。変換ステップ（normalize / grain / band_split）が実行されるたびに出力ファイルへ更新され、後続ステップがパイプ経由で処理結果を受け取れる |
+| `output_dir` | 出力ディレクトリ |
+| `artifacts` | `Artifacts` インスタンス（型付き出力パス。下記参照） |
+| `sample_rate` | サンプルレートの上書き（省略可） |
+| `extra` | デバッグ用の自由形式 dict（コア出力には使わない） |
+
+#### `ctx.artifacts`（型付き出力パス）
+
+ステップ実行後に対応フィールドへ `Path` がセットされます。
+
+```python
+ctx.artifacts.features_json      # analyze → JSON パス
+ctx.artifacts.normalized_wav     # normalize → WAV パス
+ctx.artifacts.grain_wav          # grain → WAV パス
+ctx.artifacts.band_dir           # band_split → 帯域ディレクトリ
+ctx.artifacts.band_manifest_json # band_split → マニフェスト JSON パス
+```
+
+#### カスタムステップの作り方
+
+`BaseStep` を継承してカスタムステップを作れます。`StepRegistry.register()` で登録すると YAML から利用可能になります。
+
+```python
+from hydral.steps.base import BaseStep
+from hydral.steps.registry import StepRegistry
+from hydral.pipeline import PipelineContext
+
+class MyStep(BaseStep):
+    step_name = "my_step"
+
+    def __init__(self, param: float = 1.0) -> None:
+        self.param = param
+
+    def run(self, ctx: PipelineContext) -> PipelineContext:
+        # 処理を実装（変換ステップは ctx.audio_path を更新する）
+        return ctx
+
+    def outputs(self, ctx):
+        return [ctx.output_dir / f"{ctx.input_path.stem}_my_step.wav"]
+
+    def fingerprint(self, ctx):
+        fp = super().fingerprint(ctx)
+        fp["params"] = {"param": self.param}
+        return fp
+
+StepRegistry.register("my_step", MyStep)
+```
+
+`BaseStep` の最小契約：
+
+| メソッド / プロパティ | 必須 | 説明 |
+|---------------------|------|------|
+| `step_name: str` | ✓ | YAML `name` と一致する識別子 |
+| `run(ctx) -> ctx` | ✓ | ステップの本体。変換ステップは `ctx.audio_path` を更新する |
+| `outputs(ctx)` | 推奨 | このステップが生成するファイルパスのリスト |
+| `fingerprint(ctx)` | 推奨 | JSON 直列化可能な再現性メタデータ dict |
+| `validate(ctx)` | 任意 | 実行前の入力検証（問題があれば `ValueError`） |
 
 ## Design Principles
 
