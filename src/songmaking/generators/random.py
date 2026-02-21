@@ -4,15 +4,15 @@ Produces melodies using constrained randomness within HarmonySpec bounds.
 """
 import random
 from typing import List, Tuple, Dict, Optional
-from songMaking.harmony import HarmonySpec
-from songMaking.structure import MelodyStructureSpec
-from songMaking.structure_utils import (
+from songmaking.harmony import HarmonySpec
+from songmaking.structure import MelodyStructureSpec
+from songmaking.structure_utils import (
     apply_motif_repetition,
     enforce_rhythm_profile,
     calculate_repeat_count,
     compute_duration_distribution
 )
-from songMaking.note_utils import (
+from songmaking.note_utils import (
     get_discrete_duration_values,
     snap_to_grid,
     choose_duration,

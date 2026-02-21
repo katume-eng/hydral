@@ -4,11 +4,11 @@ Uses evaluation metrics to rank and filter melodies.
 """
 import random
 from typing import List, Tuple, Dict, Optional
-from songMaking.harmony import HarmonySpec
-from songMaking.structure import MelodyStructureSpec
-from songMaking.generators.random import generate_random_melody
-from songMaking.eval import aggregate_melody_score
-from songMaking.note_utils import (
+from songmaking.harmony import HarmonySpec
+from songmaking.structure import MelodyStructureSpec
+from songmaking.generators.random import generate_random_melody
+from songmaking.eval import aggregate_melody_score
+from songmaking.note_utils import (
     get_discrete_duration_values,
     is_pitch_in_scale,
     build_scale_pitch_set

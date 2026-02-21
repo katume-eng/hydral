@@ -7,7 +7,7 @@ import sys
 from pathlib import Path
 import pretty_midi
 
-from songMaking.export.concat_fragments import export_concatenated_fragments
+from songmaking.export.concat_fragments import export_concatenated_fragments
 
 
 def check_pygame_midi():

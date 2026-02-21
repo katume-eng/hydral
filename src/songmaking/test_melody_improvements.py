@@ -8,11 +8,11 @@ import os
 # Add parent directory to path for imports
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-from songMaking.harmony import choose_harmony
-from songMaking.generators.random import generate_random_melody
-from songMaking.generators.scored import generate_scored_melody
-from songMaking.generators.markov import generate_markov_melody
-from songMaking.note_utils import (
+from songmaking.harmony import choose_harmony
+from songmaking.generators.random import generate_random_melody
+from songmaking.generators.scored import generate_scored_melody
+from songmaking.generators.markov import generate_markov_melody
+from songmaking.note_utils import (
     DISCRETE_DURATIONS,
     DURATION_VALUES,
     GRID_RESOLUTION,

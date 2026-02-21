@@ -12,7 +12,7 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 import pretty_midi
 
-from songMaking.export import concat_fragments
+from songmaking.export import concat_fragments
 
 
 def _stub_generate_melody_midi(harmony_spec, method, seed, generation_config):

@@ -9,9 +9,9 @@ from pathlib import Path
 from typing import List, Tuple, Dict, Optional
 import pretty_midi
 
-from songMaking.harmony import choose_harmony, HarmonySpec
-from songMaking.pitch_stats import extract_melody_pitches_from_midi, calculate_mean_interval
-from songMaking.cli import generate_melody_midi
+from songmaking.harmony import choose_harmony, HarmonySpec
+from songmaking.pitch_stats import extract_melody_pitches_from_midi, calculate_mean_interval
+from songmaking.cli import generate_melody_midi
 
 
 def analyze_pitch_stats(notes: List[pretty_midi.Note]) -> Tuple[float, int, int]:

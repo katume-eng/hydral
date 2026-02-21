@@ -8,17 +8,17 @@ import os
 # Add parent directory to path for imports
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-from songMaking.harmony import choose_harmony
-from songMaking.structure import MelodyStructureSpec, create_structured_spec
-from songMaking.generators.random import generate_random_melody
-from songMaking.generators.scored import generate_scored_melody
-from songMaking.generators.markov import generate_markov_melody
-from songMaking.eval import (
+from songmaking.harmony import choose_harmony
+from songmaking.structure import MelodyStructureSpec, create_structured_spec
+from songmaking.generators.random import generate_random_melody
+from songmaking.generators.scored import generate_scored_melody
+from songmaking.generators.markov import generate_markov_melody
+from songmaking.eval import (
     measure_self_similarity,
     measure_rhythm_profile_alignment,
     aggregate_melody_score
 )
-from songMaking.structure_utils import (
+from songmaking.structure_utils import (
     apply_motif_repetition,
     calculate_repeat_count,
     compute_duration_distribution

@@ -9,14 +9,14 @@ import os
 from datetime import datetime
 from pathlib import Path
 
-from songMaking.harmony import choose_harmony
-from songMaking.structure import MelodyStructureSpec, create_default_structure_spec, create_structured_spec
-from songMaking.generators.random import generate_random_melody
-from songMaking.generators.scored import generate_scored_melody
-from songMaking.generators.markov import generate_markov_melody
-from songMaking.export_midi import create_melody_midi, save_midi_file
-from songMaking.eval import aggregate_melody_score
-from songMaking.pitch_stats import (
+from songmaking.harmony import choose_harmony
+from songmaking.structure import MelodyStructureSpec, create_default_structure_spec, create_structured_spec
+from songmaking.generators.random import generate_random_melody
+from songmaking.generators.scored import generate_scored_melody
+from songmaking.generators.markov import generate_markov_melody
+from songmaking.export_midi import create_melody_midi, save_midi_file
+from songmaking.eval import aggregate_melody_score
+from songmaking.pitch_stats import (
     check_pitch_constraint,
     get_pitch_stats,
     compute_pitch_stats,

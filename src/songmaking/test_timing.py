@@ -8,9 +8,9 @@ import os
 # Add parent directory to path for imports
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-from songMaking.harmony import choose_harmony, HarmonySpec
-from songMaking.generators.random import generate_random_melody
-from songMaking.export_midi import create_melody_midi
+from songmaking.harmony import choose_harmony, HarmonySpec
+from songmaking.generators.random import generate_random_melody
+from songmaking.export_midi import create_melody_midi
 
 # Tolerance for beat alignment checks (in beats)
 BEAT_TOLERANCE = 0.01

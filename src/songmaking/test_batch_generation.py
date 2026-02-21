@@ -11,7 +11,7 @@ from pathlib import Path
 # インポート用に親ディレクトリを追加
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-from songMaking import cli
+from songmaking import cli
 
 
 def test_resolve_batch_id_collision():

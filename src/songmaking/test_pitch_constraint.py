@@ -8,7 +8,7 @@ import os
 # Add parent directory to path for imports
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-from songMaking.pitch_stats import (
+from songmaking.pitch_stats import (
     calculate_mean_pitch,
     calculate_mean_interval,
     check_pitch_constraint,
@@ -16,10 +16,10 @@ from songMaking.pitch_stats import (
     compute_pitch_stats,
     extract_melody_pitches_from_midi
 )
-from songMaking.harmony import choose_harmony
-from songMaking.generators.random import generate_random_melody
-from songMaking.cli import generate_melody_midi
-from songMaking.export_midi import create_melody_midi
+from songmaking.harmony import choose_harmony
+from songmaking.generators.random import generate_random_melody
+from songmaking.cli import generate_melody_midi
+from songmaking.export_midi import create_melody_midi
 
 
 def test_calculate_mean_pitch_basic():
