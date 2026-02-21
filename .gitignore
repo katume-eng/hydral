@@ -68,11 +68,11 @@ data/packs/**
 *.flac
 *.m4a
 
-analysis/analysis_outputs/
+src/hydral/analysis/analysis_outputs/
 expression/
 
 # Song generation outputs
-songMaking/output/
+src/songmaking/output/
 generated/
 *.mid
 *.midi
