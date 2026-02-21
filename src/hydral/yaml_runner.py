@@ -180,6 +180,7 @@ def _capture_outputs(step_name: str, ctx, step_trace: StepTrace) -> None:
 
     artifact_map = {
         "analyze": "features_json",
+        "ensure_metadata": "metadata_json",
         "normalize": "normalized_wav",
         "grain": "grain_wav",
         "band_split": "band_dir",
