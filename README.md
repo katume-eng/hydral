@@ -273,9 +273,117 @@ JSONメタデータファイルは`{basename}.json`と命名され、対応す�
 5. **テンポ変更**  
    - 1曲中でテンポは固定（`tempo_bpm`の値）
 
-## Audio Analysis Pipeline
+## Hydral 音声パイプライン (`python -m hydral`)
 
-(保持する既存の音声分析内容)
+`data/raw/` 内の音声ファイルを1コマンドで処理し、`data/processed/hydral/` に出力します。
+
+### セットアップ
+
+```bash
+pip install -r requirements.txt
+export PYTHONPATH=src   # または python -m を使う場合は不要
+```
+
+### 基本的な使い方
+
+#### 音声特徴量の抽出（`analyze`）
+
+WAV / MP3 / FLAC ファイルを解析し、JSON ファイルを出力します。
+
+```bash
+# 1ファイルを解析
+python -m hydral analyze data/raw/track.wav
+
+# フォルダ内の全ファイルをまとめて解析
+python -m hydral analyze data/raw/
+
+# 出力先・サンプルレートを指定
+python -m hydral analyze data/raw/track.wav --out data/processed/hydral --sr 22050
+```
+
+#### 音声処理（`process`）
+
+1つ以上の処理ステップを組み合わせて適用します。
+
+```bash
+# ピーク正規化
+python -m hydral process data/raw/track.wav --normalize
+
+# 周波数帯域分割（低域・中域・高域・トーナル/ノイズ）
+python -m hydral process data/raw/track.wav --band-split
+
+# グレイン・シャッフル（粒状合成）
+python -m hydral process data/raw/track.wav --grain
+
+# 複数ステップを同時に適用
+python -m hydral process data/raw/track.wav --normalize --band-split --grain
+
+# フォルダ内の全ファイルを一括処理
+python -m hydral process data/raw/ --normalize --grain
+
+# グレインの長さとシードを指定
+python -m hydral process data/raw/track.wav --grain --grain-sec 0.25 --seed 123
+```
+
+### 出力先ディレクトリ構成
+
+```
+data/processed/hydral/
+└── <ファイル名（拡張子なし）>/
+    ├── <stem>_features.json     # analyze → RMS・帯域エネルギー・オンセット
+    ├── <stem>_normalized.wav    # --normalize → ピーク正規化済み音声
+    ├── <stem>_grain.wav         # --grain → グレイン・シャッフル済み音声
+    └── <stem>_bands/            # --band-split → 帯域分割 WAV + マニフェスト
+        ├── band01_tonal.wav
+        ├── band01_noise.wav
+        ├── ...
+        └── split_manifest.json
+```
+
+### オプション一覧
+
+#### `analyze`
+
+| オプション | デフォルト | 説明 |
+|-----------|-----------|------|
+| `input` | （必須） | WAV/MP3/FLAC ファイルまたはフォルダ |
+| `--out DIR` | `data/processed/hydral` | 出力ルートディレクトリ |
+| `--sr HZ` | 元のまま | リサンプリング後のサンプルレート |
+| `--hop-length N` | `512` | 解析フレームのホップ幅（サンプル数） |
+| `--smoothing-window N` | `5` | 平滑化窓サイズ（フレーム数） |
+
+#### `process`
+
+| オプション | デフォルト | 説明 |
+|-----------|-----------|------|
+| `input` | （必須） | WAV/MP3/FLAC ファイルまたはフォルダ |
+| `--out DIR` | `data/processed/hydral` | 出力ルートディレクトリ |
+| `--normalize` | off | ピーク正規化（−1 dBFS） |
+| `--band-split` | off | 5帯域 × トーナル/ノイズ分割 |
+| `--grain` | off | グレイン・シャッフル後に再連結 |
+| `--grain-sec SEC` | `0.5` | グレイン長（秒） |
+| `--seed SEED` | `42` | グレイン・シャッフルの乱数シード |
+
+### パイプライン API（Python からの利用）
+
+```python
+from pathlib import Path
+from hydral.pipeline import Pipeline, PipelineContext
+from hydral.steps import AnalyzeStep, NormalizeStep, GrainStep
+
+ctx = PipelineContext(
+    input_path=Path("data/raw/track.wav"),
+    output_dir=Path("data/processed/hydral/track"),
+)
+
+Pipeline([
+    AnalyzeStep(),
+    NormalizeStep(target_db=-3.0),
+    GrainStep(grain_sec=0.25, seed=99),
+]).run(ctx)
+```
+
+カスタムステップは `run(ctx: PipelineContext) -> PipelineContext` を実装するだけで追加できます。
 
 ## Design Principles
 
