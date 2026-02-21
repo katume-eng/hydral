@@ -1,0 +1,58 @@
+{
+  "method": "random",
+  "seed": 42,
+  "timestamp": "20260208_131546",
+  "harmony": {
+    "tonic": "A",
+    "scale_intervals": [
+      0,
+      2,
+      4,
+      5,
+      7,
+      9,
+      11
+    ],
+    "chord_progression": [
+      "ii",
+      "ii",
+      "ii",
+      "vi",
+      "I",
+      "vi"
+    ],
+    "tempo_bpm": 127,
+    "time_signature": "4/4",
+    "pitch_range": [
+      72,
+      87
+    ],
+    "subdivision": 0.5,
+    "measures": 2
+  },
+  "generation_config": {
+    "rest_probability": 0.15,
+    "candidate_count": 10,
+    "score_threshold": 0.3,
+    "ngram_order": 2
+  },
+  "pitch_constraint": {
+    "enabled": false,
+    "target_mean": null,
+    "tolerance": null,
+    "max_attempts": null,
+    "attempts_used": 1
+  },
+  "result": {
+    "note_count": 6,
+    "quality_score": 0.5582,
+    "total_duration_beats": 8.0,
+    "pitch_stats": {
+      "mean": 74.2,
+      "min": 73,
+      "max": 76,
+      "range": 3,
+      "sounding_count": 5
+    }
+  }
+}

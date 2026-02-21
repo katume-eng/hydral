@@ -1,0 +1,59 @@
+{
+  "method": "scored",
+  "seed": 123,
+  "timestamp": "20260208_132659",
+  "harmony": {
+    "tonic": "Cb",
+    "scale_intervals": [
+      0,
+      2,
+      3,
+      5,
+      7,
+      9,
+      10
+    ],
+    "chord_progression": [
+      "iii",
+      "I",
+      "vii\u00b0",
+      "vii\u00b0",
+      "I",
+      "IV",
+      "V"
+    ],
+    "tempo_bpm": 115,
+    "time_signature": "4/4",
+    "pitch_range": [
+      60,
+      79
+    ],
+    "subdivision": 0.0625,
+    "measures": 2
+  },
+  "generation_config": {
+    "rest_probability": 0.15,
+    "candidate_count": 20,
+    "score_threshold": 0.3,
+    "ngram_order": 2
+  },
+  "pitch_constraint": {
+    "enabled": false,
+    "target_mean": null,
+    "tolerance": null,
+    "max_attempts": null,
+    "attempts_used": 1
+  },
+  "result": {
+    "note_count": 7,
+    "quality_score": 0.7429,
+    "total_duration_beats": 8.0,
+    "pitch_stats": {
+      "mean": 67.17,
+      "min": 62,
+      "max": 71,
+      "range": 9,
+      "sounding_count": 6
+    }
+  }
+}

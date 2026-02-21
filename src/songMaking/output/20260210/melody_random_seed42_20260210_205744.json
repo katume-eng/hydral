@@ -1,0 +1,90 @@
+{
+  "method": "random",
+  "seed": 42,
+  "timestamp": "20260210_205744",
+  "harmony": {
+    "tonic": "A",
+    "scale_intervals": [
+      0,
+      2,
+      4,
+      5,
+      7,
+      9,
+      11
+    ],
+    "chord_progression": [
+      "ii",
+      "ii",
+      "ii",
+      "vi",
+      "I",
+      "vi"
+    ],
+    "tempo_bpm": 127,
+    "time_signature": "4/4",
+    "pitch_range": [
+      72,
+      87
+    ],
+    "subdivision": 0.5,
+    "measures": 4
+  },
+  "structure": {
+    "enabled": true,
+    "repeat_unit_beats": 4.0,
+    "rhythm_profile": {
+      "0.25": 0.4,
+      "0.5": 0.3,
+      "1.0": 0.3
+    },
+    "allow_motif_variation": true,
+    "variation_probability": 0.2
+  },
+  "generation_config": {
+    "rest_probability": 0.15,
+    "candidate_count": 10,
+    "score_threshold": 0.3,
+    "ngram_order": 2
+  },
+  "pitch_constraint": {
+    "enabled": false,
+    "target_mean": null,
+    "tolerance": null,
+    "max_attempts": null,
+    "attempts_used": 1
+  },
+  "result": {
+    "note_count": 28,
+    "quality_score": 0.5679,
+    "total_duration_beats": 12.0,
+    "pitch_stats": {
+      "mean": 78.4,
+      "min": 73,
+      "max": 83,
+      "range": 10,
+      "sounding_count": 25
+    },
+    "avg_pitch": 78.4,
+    "pitch_min": 73,
+    "pitch_max": 83,
+    "pitch_range": 10,
+    "pitch_std": 4.12
+  },
+  "debug_stats": {
+    "duration_distribution": {
+      "0.500": 9,
+      "0.250": 10,
+      "1.000": 9
+    },
+    "scale_out_rejections": 0,
+    "octave_up_events": 0,
+    "total_beats": 12.0,
+    "repeat_count": 3,
+    "actual_duration_distribution": {
+      "0.5": 0.39285714285714285,
+      "0.25": 0.5,
+      "1.0": 0.10714285714285714
+    }
+  }
+}
