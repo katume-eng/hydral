@@ -141,16 +141,41 @@ class NormalizeStep(BaseStep):
     def output_exists(self, ctx: PipelineContext) -> bool:
         return (ctx.output_dir / f"{ctx.input_path.stem}_normalized.wav").exists()
 
-    def run(self, ctx: PipelineContext) -> PipelineContext:
-        audio, sr = sf.read(str(ctx.audio_path), always_2d=False)
-        peak = float(np.abs(audio).max())
-        if peak > 0:
-            target_linear = 10 ** (self.target_db / 20.0)
-            audio = audio * (target_linear / peak)
+    # Block size for streaming I/O: 65536 frames balances memory usage (~1 MB
+    # per channel at float32) against I/O syscall overhead.
+    _BLOCK_FRAMES: int = 65536
 
+    def run(self, ctx: PipelineContext) -> PipelineContext:
         ctx.output_dir.mkdir(parents=True, exist_ok=True)
         out_path = ctx.output_dir / f"{ctx.input_path.stem}_normalized.wav"
-        sf.write(str(out_path), audio, sr, subtype="FLOAT")
+
+        target_linear = 10 ** (self.target_db / 20.0)
+
+        with sf.SoundFile(str(ctx.audio_path)) as src:
+            sr = src.samplerate
+            channels = src.channels
+
+            # 1st pass: find peak across all blocks
+            peak = 0.0
+            for block in src.blocks(blocksize=self._BLOCK_FRAMES, dtype="float32"):
+                block_peak = float(np.max(np.abs(block)))
+                if block_peak > peak:
+                    peak = block_peak
+
+            scale = (target_linear / peak) if peak > 0 else 1.0
+
+            # 2nd pass: re-read, scale, and write
+            src.seek(0)
+            with sf.SoundFile(
+                str(out_path),
+                mode="w",
+                samplerate=sr,
+                channels=channels,
+                subtype="FLOAT",
+                format="WAV",
+            ) as dst:
+                for block in src.blocks(blocksize=self._BLOCK_FRAMES, dtype="float32"):
+                    dst.write(block * scale)
 
         print(f"  ✓ Normalized audio saved to {out_path}")
         ctx.artifacts.normalized_wav = out_path

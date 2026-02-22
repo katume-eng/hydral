@@ -110,6 +110,44 @@ def test_normalize_step_creates_wav(tmp_path):
     assert abs(peak_db - (-1.0)) < 0.1, f"Peak {peak_db:.2f} dB, expected -1.0 dB"
 
 
+def test_normalize_step_stereo(tmp_path):
+    """NormalizeStep must handle stereo (2-channel) WAV correctly."""
+    wav = tmp_path / "stereo.wav"
+    sr = 22050
+    t = np.linspace(0, 1.0, sr, dtype=np.float32)
+    audio = np.stack([0.3 * np.sin(2 * np.pi * 440 * t),
+                      0.2 * np.sin(2 * np.pi * 880 * t)], axis=1).astype(np.float32)
+    sf.write(str(wav), audio, sr)
+    out_dir = tmp_path / "out"
+
+    from hydral.steps import NormalizeStep
+    ctx = PipelineContext(input_path=wav, output_dir=out_dir)
+    NormalizeStep(target_db=-1.0).run(ctx)
+
+    out_wav = out_dir / "stereo_normalized.wav"
+    assert out_wav.exists(), "normalized stereo WAV not created"
+    result, _ = sf.read(str(out_wav))
+    assert result.ndim == 2, "output should be 2-channel"
+    peak_db = 20 * np.log10(np.abs(result).max())
+    assert abs(peak_db - (-1.0)) < 0.1, f"Stereo peak {peak_db:.2f} dB, expected -1.0 dB"
+
+
+def test_normalize_step_silent_input(tmp_path):
+    """NormalizeStep must not raise when input is silent (peak == 0)."""
+    wav = tmp_path / "silence.wav"
+    sf.write(str(wav), np.zeros(22050, dtype=np.float32), 22050)
+    out_dir = tmp_path / "out"
+
+    from hydral.steps import NormalizeStep
+    ctx = PipelineContext(input_path=wav, output_dir=out_dir)
+    NormalizeStep(target_db=-1.0).run(ctx)
+
+    out_wav = out_dir / "silence_normalized.wav"
+    assert out_wav.exists(), "silent WAV output not created"
+    result, _ = sf.read(str(out_wav))
+    assert np.all(result == 0.0), "silent input should produce silent output"
+
+
 # ── GrainStep ────────────────────────────────────────────────────────────────
 
 def test_grain_step_creates_wav(tmp_path):
