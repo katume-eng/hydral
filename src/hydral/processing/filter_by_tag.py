@@ -8,6 +8,7 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Dict, Iterable, List, Optional, Tuple
 
+from hydral.paths import DATA_ROOT_DIR as _DATA_ROOT
 
 AUDIO_PATH_KEYS = (
     "audio_path",
@@ -34,9 +35,9 @@ def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(
         description="Filter JSON metadata by tag and copy matching audio files."
     )
-    parser.add_argument("--data_dir", type=Path, default=Path("data"))
+    parser.add_argument("--data_dir", type=Path, default=_DATA_ROOT / "data")
     parser.add_argument("--tag", type=str, default="low_freq_rich")
-    parser.add_argument("--out_dir", type=Path, default=Path("data/selected/low_freq"))
+    parser.add_argument("--out_dir", type=Path, default=_DATA_ROOT / "data/selected/low_freq")
     parser.add_argument("--ext", type=str, default="wav")
     parser.add_argument("--dry_run", action="store_true", help="Log only, no copy")
     parser.add_argument("--overwrite", action="store_true", help="Allow overwriting output")

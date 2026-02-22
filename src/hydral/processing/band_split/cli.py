@@ -14,6 +14,8 @@ from pathlib import Path
 
 from .split import DEFAULT_BANDS, split_into_bands
 
+from hydral.paths import DATA_ROOT_DIR as _DATA_ROOT
+
 
 def main():
     """Main CLI entry point."""
@@ -31,7 +33,7 @@ def main():
     parser.add_argument(
         "--out-root",
         type=Path,
-        default=Path("data/processed/band_split/v1"),
+        default=_DATA_ROOT / "data/processed/band_split/v1",
         help="Output root directory (default: data/processed/band_split/v1)"
     )
     

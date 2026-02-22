@@ -17,6 +17,8 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any, Dict, List, Optional
 
+from hydral.paths import DATA_ROOT_DIR as _DATA_ROOT
+
 import yaml
 
 # Ensure built-in steps are registered in StepRegistry before any build_step call.
@@ -36,8 +38,8 @@ class StepConfig:
 @dataclass
 class PipelineConfig:
     name: str = "hydral_default"
-    input: str = "data/raw"
-    output: str = "data/processed/hydral"
+    input: str = str(_DATA_ROOT / "data/raw")
+    output: str = str(_DATA_ROOT / "data/processed/hydral")
     glob: List[str] = field(
         default_factory=lambda: ["**/*.wav", "**/*.mp3", "**/*.flac", "**/*.m4a"]
     )
@@ -136,8 +138,8 @@ def load_config(config_path: Path) -> PipelineConfig:
 
     return PipelineConfig(
         name=pipeline_raw.get("name", "hydral_default"),
-        input=pipeline_raw.get("input", "data/raw"),
-        output=pipeline_raw.get("output", "data/processed/hydral"),
+        input=pipeline_raw.get("input", str(_DATA_ROOT / "data/raw")),
+        output=pipeline_raw.get("output", str(_DATA_ROOT / "data/processed/hydral")),
         glob=pipeline_raw.get(
             "glob", ["**/*.wav", "**/*.mp3", "**/*.flac", "**/*.m4a"]
         ),

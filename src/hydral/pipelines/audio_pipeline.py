@@ -56,8 +56,8 @@ def random_pan_pipeline(
 
 
 if __name__ == "__main__":
-    # ここに「今やりたい処理」だけを書く
+    from hydral.paths import DATA_ROOT_DIR
     random_pan_pipeline(
-        "data/raw/recorded.wav",
-        "/mnt/c/hydral/outputs/panned.wav",
+        str(DATA_ROOT_DIR / "data/raw/recorded.wav"),
+        str(DATA_ROOT_DIR / "outputs/panned.wav"),
     )
