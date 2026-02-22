@@ -549,6 +549,6 @@ if __name__ == "__main__":
 
 
 # Example usage:
-#   python processing/export_to_pack.py --src data/processed/run_20260215 --dst data/packs/v1/water_sfx --mode copy --include-ext wav,json,png --overwrite
-#   python processing/export_to_pack.py --src data/generated/songmaking/out --dst data/packs/v1/midi_pack --mode hardlink --include-ext mid,json --dry-run
-#   python -m processing.export_to_pack --src data/test --dst data/packs/v1/test --dry-run
+#   python processing/export_to_pack.py --src /mnt/c/hydral/data/processed/run_20260215 --dst /mnt/c/hydral/data/packs/v1/water_sfx --mode copy --include-ext wav,json,png --overwrite
+#   python processing/export_to_pack.py --src /mnt/c/hydral/data/generated/songmaking/out --dst /mnt/c/hydral/data/packs/v1/midi_pack --mode hardlink --include-ext mid,json --dry-run
+#   python -m processing.export_to_pack --src /mnt/c/hydral/data/test --dst /mnt/c/hydral/data/packs/v1/test --dry-run
