@@ -260,16 +260,25 @@ def _cmd_instagram(args: argparse.Namespace) -> None:  # noqa: C901
             import numpy as np
             import soundfile as sf
 
-            raw_data, file_sr = sf.read(str(normalized_path), dtype="int16", always_2d=True)
-            channels = raw_data.shape[1]
+            # 1) FLOATで読む（ここが重要）
+            float_data, file_sr = sf.read(str(normalized_path), dtype="float32", always_2d=True)
+
+            # 2) [-1, 1] にクリップして int16 にスケール
+            float_data = np.clip(float_data, -1.0, 1.0)
+            int16_data = (float_data * 32767.0).astype(np.int16)
+
+            channels = int16_data.shape[1]
+
             audio = AudioSegment(
-                raw_data.tobytes(),
+                int16_data.tobytes(),
                 frame_rate=file_sr,
-                sample_width=2,  # int16 = 2 bytes
+                sample_width=2,   # int16
                 channels=channels,
             )
+
             if args.sr is not None:
                 audio = audio.set_frame_rate(args.sr)
+
         except Exception as exc:
             msg = f"{src.name}: failed to load {normalized_path}: {exc}"
             _warn(msg)
@@ -288,6 +297,13 @@ def _cmd_instagram(args: argparse.Namespace) -> None:  # noqa: C901
             end_ms = start_ms + duration_ms
 
             if start_ms >= len(audio):
+                _warn(
+                    f"{src.name}: offset {offset}s exceeds audio length "
+                    f"({audio_duration_sec:.1f}s), skipping"
+                )
+                continue
+
+            if end_ms > len(audio):
                 _warn(
                     f"{src.name}: offset {offset}s exceeds audio length "
                     f"({audio_duration_sec:.1f}s), skipping"
