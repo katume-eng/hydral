@@ -211,7 +211,7 @@ def test_instagram_creates_index_jsonl(tmp_path: Path) -> None:
 
     index = out_dir / "_index.jsonl"
     assert index.exists(), "_index.jsonl not created"
-    lines = [l for l in index.read_text(encoding="utf-8").splitlines() if l.strip()]
+    lines = [line for line in index.read_text(encoding="utf-8").splitlines() if line.strip()]
     assert len(lines) == 2, f"Expected 2 index entries, got {len(lines)}"
 
 
