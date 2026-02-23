@@ -481,6 +481,63 @@ data/processed/hydral/
         └── split_manifest.json
 ```
 
+---
+
+### Instagram 短尺クリップ書き出し（`instagram`）
+
+RAW 素材から Instagram 投稿用の短尺音源（デフォルト 24 秒）を1コマンドで量産します。
+
+```bash
+# data/raw/ 内の全ファイルを処理（デフォルト：0/5/10 秒オフセットの3クリップ × ファイル数）
+python -m hydral instagram data/raw --duration-sec 24 --offsets "0,5,10"
+
+# 1ファイルを MP3 形式・日付サブフォルダなしでエクスポート
+python -m hydral instagram data/raw/track.wav --format mp3 --no-date-subdir
+
+# dry-run で何を生成するかだけ確認
+python -m hydral instagram data/raw --dry-run
+
+# 先頭3ファイルのみ処理（実験用）
+python -m hydral instagram data/raw --limit 3
+```
+
+#### 出力ディレクトリ構成
+
+```
+data/exports/instagram/
+└── <YYYYMMDD>/
+    ├── <stem>_ig_24s_0s.wav       # offset=0s クリップ
+    ├── <stem>_ig_24s_0s.json      # クリップのメタデータ
+    ├── <stem>_ig_24s_5s.wav       # offset=5s クリップ
+    ├── <stem>_ig_24s_5s.json
+    ├── ...
+    └── _index.jsonl               # 全クリップのメタデータ（1行1クリップ）
+```
+
+#### `instagram` オプション一覧
+
+| オプション | デフォルト | 説明 |
+|-----------|-----------|------|
+| `INPUT` | `data/raw` | 入力ファイルまたはフォルダ |
+| `--processed-out DIR` | `data/processed/hydral` | 正規化済み WAV の保存先ルート |
+| `--out-dir DIR` | `data/exports/instagram` | クリップ書き出し先ルート |
+| `--date-subdir / --no-date-subdir` | date-subdir ON | 日付サブフォルダの有無 |
+| `--glob PATTERN` | wav/mp3/flac/m4a | 音声ファイルの glob パターン（複数回指定可） |
+| `--duration-sec SEC` | `24` | クリップ長（秒） |
+| `--offsets CSV` | `"0,5,10"` | 開始オフセット（秒）のカンマ区切りリスト |
+| `--fade-in-ms MS` | `50` | フェードイン長（ミリ秒） |
+| `--fade-out-ms MS` | `300` | フェードアウト長（ミリ秒） |
+| `--target-db DB` | `-1.0` | 正規化ターゲット（dBFS） |
+| `--analyze / --no-analyze` | no-analyze | 正規化前に音声解析を実行するか |
+| `--format wav\|mp3` | `wav` | 出力フォーマット（mp3 は ffmpeg 必須） |
+| `--sr HZ` | 元のまま | クリップのサンプルレートを変換 |
+| `--force` | off | 既存の正規化済みファイルを再作成 |
+| `--dry-run` | off | 処理内容の確認のみ（ファイル書き出しなし） |
+| `--limit N` | なし | 先頭 N ファイルのみ処理 |
+| `--quiet` | off | 進捗ログを抑制（エラーは常に表示） |
+
+---
+
 ### オプション一覧
 
 #### `analyze`
