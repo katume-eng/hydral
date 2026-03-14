@@ -1,6 +1,6 @@
 pipeline:
   name: "hydral_default"
-  input: "/mnt/c/hydral/data/raw"
+  input: "/mnt/c/hydral/data/raw/hydral"
   output: "/mnt/c/hydral/data/processed/hydral"
   glob:
     - "**/*.wav"
