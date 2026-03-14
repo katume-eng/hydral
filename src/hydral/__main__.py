@@ -14,6 +14,10 @@ instagram
     Normalize raw audio and export short clips for Instagram posts
     (default 24 s, multiple offset candidates) to data/exports/instagram/.
 
+splash
+    Detect instantaneous splash events in a WAV file and print them to
+    stdout.  Optionally save as JSON with --json.
+
 Examples
 --------
 Analyze every WAV in data/raw/::
@@ -35,6 +39,10 @@ Export Instagram clips from a folder::
 Export as MP3 without date subfolder::
 
     python -m hydral instagram data/raw/track.wav --format mp3 --no-date-subdir
+
+Detect splash events in a WAV file::
+
+    python -m hydral splash data/raw/splash.wav --json output.json
 """
 from __future__ import annotations
 
@@ -370,6 +378,50 @@ def _cmd_instagram(args: argparse.Namespace) -> None:  # noqa: C901
         sys.exit(1)
 
 
+# ── splash ───────────────────────────────────────────────────────────────────
+
+def _cmd_splash(args: argparse.Namespace) -> None:
+    """Detect splash events in a single WAV file."""
+    import json
+
+    from hydral.analysis.audio_features.io import load_audio_waveform
+    from hydral.analysis.events.splash import detect_splash_events, events_to_dicts
+
+    wav_path = args.input
+    if not wav_path.exists():
+        sys.exit(f"File not found: {wav_path}")
+    if wav_path.suffix.lower() not in _SUPPORTED_EXTS:
+        sys.exit(f"Unsupported file type: {wav_path.suffix!r}")
+
+    print(f"Loading {wav_path.name} …")
+    y, sr = load_audio_waveform(wav_path, target_sample_rate=args.sr)
+
+    print("Detecting splash events …")
+    events = detect_splash_events(
+        y,
+        sr,
+        hop_length=args.hop_length,
+        smooth_window=args.smooth_window,
+        energy_threshold_std=args.energy_threshold_std,
+        onset_threshold_std=args.onset_threshold_std,
+        min_interval_sec=args.min_interval_sec,
+    )
+
+    print(f"Found {len(events)} splash event(s).")
+    preview = events[:10]
+    for ev in preview:
+        print(f"  t={ev.time_sec:.3f}s  strength={ev.strength:.4f}  sample={ev.sample_index}")
+    if len(events) > 10:
+        print(f"  … and {len(events) - 10} more.")
+
+    if args.json:
+        out_path = Path(args.json)
+        out_path.parent.mkdir(parents=True, exist_ok=True)
+        with open(out_path, "w", encoding="utf-8") as fh:
+            json.dump(events_to_dicts(events), fh, ensure_ascii=False, indent=2)
+        print(f"Saved JSON → {out_path}")
+
+
 # ── argument parser ──────────────────────────────────────────────────────────
 
 def _build_parser() -> argparse.ArgumentParser:
@@ -592,6 +644,61 @@ def _build_parser() -> argparse.ArgumentParser:
         help="Suppress progress output (errors are always shown)",
     )
 
+    # ── splash ────────────────────────────────────────────────────────────────
+    p_sp = sub.add_parser(
+        "splash",
+        help="Detect instantaneous splash events in a WAV file",
+    )
+    p_sp.add_argument("input", type=Path, help="Input WAV file")
+    p_sp.add_argument(
+        "--json",
+        type=Path,
+        metavar="FILE",
+        help="Save detected events as JSON to this path",
+    )
+    p_sp.add_argument(
+        "--sr",
+        type=int,
+        default=None,
+        metavar="HZ",
+        help="Resample to this sample rate before detection (default: keep original)",
+    )
+    p_sp.add_argument(
+        "--hop-length",
+        type=int,
+        default=256,
+        metavar="N",
+        help="Analysis frame hop in samples (default: 256)",
+    )
+    p_sp.add_argument(
+        "--smooth-window",
+        type=int,
+        default=5,
+        metavar="N",
+        help="Moving-average window for energy smoothing (default: 5)",
+    )
+    p_sp.add_argument(
+        "--energy-threshold-std",
+        type=float,
+        default=2.0,
+        metavar="K",
+        help="Energy gate: mean + K×std (default: 2.0)",
+    )
+    p_sp.add_argument(
+        "--onset-threshold-std",
+        type=float,
+        default=1.5,
+        metavar="K",
+        help="Onset gate: mean + K×std (default: 1.5)",
+    )
+    p_sp.add_argument(
+        "--min-interval-sec",
+        type=float,
+        default=0.12,
+        metavar="SEC",
+        help="Refractory period between events in seconds (default: 0.12)",
+    )
+
     return parser
 
 
@@ -607,6 +714,8 @@ def main() -> None:
         _cmd_process(args)
     elif args.command == "instagram":
         _cmd_instagram(args)
+    elif args.command == "splash":
+        _cmd_splash(args)
 
 
 if __name__ == "__main__":
