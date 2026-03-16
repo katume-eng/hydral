@@ -30,3 +30,11 @@ pipeline:
       params:
         grain_sec: 0.5
         seed: 42
+    - name: splash
+      enabled: false
+      params:
+        # hop_length: 256        # frame hop size in samples
+        # smooth_window: 5       # moving-average smoothing window (frames)
+        # energy_threshold_std: 2.0   # energy gate: mean + k*std
+        # onset_threshold_std: 1.5    # onset gate: mean + k*std
+        # min_interval_sec: 0.12      # refractory period between events (s)

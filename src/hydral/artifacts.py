@@ -25,3 +25,5 @@ class Artifacts:
     grain_wav: Optional[Path] = None
     band_manifest_json: Optional[Path] = None
     band_dir: Optional[Path] = None
+    splash_events_json: Optional[Path] = None
+    splash_debug_png: Optional[Path] = None

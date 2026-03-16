@@ -27,6 +27,12 @@ from hydral.analysis.audio_features.etract_energy import extract_rms_energy
 from hydral.analysis.audio_features.io import load_audio_waveform
 from hydral.analysis.audio_features.onset import extract_onset_strength
 from hydral.analysis.audio_features.smoothing import apply_moving_average
+from hydral.analysis.events.splash import (
+    compute_energy_envelope,
+    compute_onset_envelope,
+    detect_splash_events,
+    events_to_dicts,
+)
 from hydral.infra.audio import export_wav, load_wav
 from hydral.pipeline import PipelineContext
 from hydral.processing.assemble import concat
@@ -330,12 +336,147 @@ class EnsureMetadataStep(BaseStep):
 
 
 
+# ── SplashStep ─────────────────────────────────────────────────────────────
+
+
+class SplashStep(BaseStep):
+    """Detect splash events and save results as JSON and a debug PNG.
+
+    Outputs:
+
+    * ``<stem>_splash_events.json`` – list of detected events
+      (time_sec, strength, sample_index).
+    * ``<stem>_splash_debug.png`` – visualization of the energy/onset
+      envelopes with vertical lines marking each event.
+
+    Reads from ``ctx.audio_path`` but does *not* update it (analysis is
+    non-destructive).
+    """
+
+    def __init__(
+        self,
+        hop_length: int = 256,
+        smooth_window: int = 5,
+        energy_threshold_std: float = 2.0,
+        onset_threshold_std: float = 1.5,
+        min_interval_sec: float = 0.12,
+        sr: int | None = None,
+    ) -> None:
+        self.hop_length = hop_length
+        self.smooth_window = smooth_window
+        self.energy_threshold_std = energy_threshold_std
+        self.onset_threshold_std = onset_threshold_std
+        self.min_interval_sec = min_interval_sec
+        self.sr = sr
+
+    @property
+    def step_name(self) -> str:
+        return "splash"
+
+    def outputs(self, ctx: PipelineContext) -> List[Path]:
+        stem = ctx.input_path.stem
+        return [
+            ctx.output_dir / f"{stem}_splash_events.json",
+            ctx.output_dir / f"{stem}_splash_debug.png",
+        ]
+
+    def fingerprint(self, ctx: PipelineContext) -> Dict[str, Any]:
+        fp = super().fingerprint(ctx)
+        fp["params"] = {
+            "hop_length": self.hop_length,
+            "smooth_window": self.smooth_window,
+            "energy_threshold_std": self.energy_threshold_std,
+            "onset_threshold_std": self.onset_threshold_std,
+            "min_interval_sec": self.min_interval_sec,
+            "sr": self.sr,
+        }
+        return fp
+
+    def output_exists(self, ctx: PipelineContext) -> bool:
+        stem = ctx.input_path.stem
+        json_out = ctx.output_dir / f"{stem}_splash_events.json"
+        png_out = ctx.output_dir / f"{stem}_splash_debug.png"
+        return json_out.exists() and png_out.exists()
+
+    def run(self, ctx: PipelineContext) -> PipelineContext:
+        import matplotlib
+        matplotlib.use("Agg")
+        import matplotlib.pyplot as plt
+
+        effective_sr = ctx.sample_rate if ctx.sample_rate is not None else self.sr
+        waveform, sr = load_audio_waveform(ctx.audio_path, target_sample_rate=effective_sr)
+
+        events = detect_splash_events(
+            waveform,
+            sr,
+            hop_length=self.hop_length,
+            smooth_window=self.smooth_window,
+            energy_threshold_std=self.energy_threshold_std,
+            onset_threshold_std=self.onset_threshold_std,
+            min_interval_sec=self.min_interval_sec,
+        )
+
+        ctx.output_dir.mkdir(parents=True, exist_ok=True)
+        stem = ctx.input_path.stem
+
+        # ── Save JSON ─────────────────────────────────────────────────────────
+        json_path = ctx.output_dir / f"{stem}_splash_events.json"
+        with open(json_path, "w", encoding="utf-8") as fh:
+            json.dump(events_to_dicts(events), fh, indent=2)
+        print(f"  ✓ Splash events saved to {json_path} ({len(events)} events)")
+
+        # ── Save debug PNG ────────────────────────────────────────────────────
+        png_path = ctx.output_dir / f"{stem}_splash_debug.png"
+
+        energy = compute_energy_envelope(
+            waveform, hop_length=self.hop_length, smooth_window=self.smooth_window
+        )
+        onset = compute_onset_envelope(
+            waveform, sr=sr, hop_length=self.hop_length, smooth_window=self.smooth_window
+        )
+        n_frames = min(len(energy), len(onset))
+        energy = energy[:n_frames]
+        onset = onset[:n_frames]
+        times = np.arange(n_frames) * self.hop_length / sr
+
+        fig, axes = plt.subplots(2, 1, figsize=(12, 6), sharex=True)
+
+        axes[0].plot(times, energy, color="steelblue", linewidth=0.8, label="RMS energy")
+        axes[0].set_ylabel("RMS Energy")
+        axes[0].legend(loc="upper right", fontsize=8)
+
+        axes[1].plot(times, onset, color="darkorange", linewidth=0.8, label="Onset strength")
+        axes[1].set_ylabel("Onset Strength")
+        axes[1].set_xlabel("Time (s)")
+        axes[1].legend(loc="upper right", fontsize=8)
+
+        for ev in events:
+            axes[0].axvline(x=ev.time_sec, color="red", linewidth=0.8, alpha=0.7)
+            axes[1].axvline(x=ev.time_sec, color="red", linewidth=0.8, alpha=0.7)
+
+        fig.suptitle(
+            f"{stem} – splash detection ({len(events)} events)", fontsize=11
+        )
+        fig.tight_layout()
+        fig.savefig(png_path, dpi=150)
+        plt.close(fig)
+
+        print(f"  ✓ Splash debug image saved to {png_path}")
+
+        ctx.artifacts.splash_events_json = json_path
+        ctx.artifacts.splash_debug_png = png_path
+        ctx.extra["splash_events_path"] = json_path  # backward compat
+        ctx.extra["splash_debug_path"] = png_path
+        return ctx
+
+
 def _register_builtins() -> None:
     StepRegistry.register("analyze", AnalyzeStep)
     StepRegistry.register("normalize", NormalizeStep)
     StepRegistry.register("band_split", BandSplitStep)
     StepRegistry.register("grain", GrainStep)
     StepRegistry.register("ensure_metadata", EnsureMetadataStep)
+    StepRegistry.register("splash", SplashStep)
 
 
 _register_builtins()
