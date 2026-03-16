@@ -1,6 +1,6 @@
 pipeline:
   name: "hydral_default"
-  input: "/mnt/c/hydral/data/raw/hydral"
+  input: "/mnt/c/hydral/data/raw/hydral/"
   output: "/mnt/c/hydral/data/processed/hydral"
   glob:
     - "**/*.wav"
@@ -31,7 +31,7 @@ pipeline:
         grain_sec: 0.5
         seed: 42
     - name: splash
-      enabled: false
+      enabled: true
       params:
         hop_length: 256        # frame hop size in samples
         smooth_window: 5       # moving-average smoothing window (frames)
